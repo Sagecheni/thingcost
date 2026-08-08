@@ -46,12 +46,13 @@ describe('notification channel test delivery', () => {
     expect(init.body).toContain('chronicle.notification_test');
   });
 
-  it('sends Telegram, Enterprise WeChat, and Server酱 payloads', async () => {
+  it('sends Telegram, Enterprise WeChat, Server酱, and PushPlus payloads', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response('{"ok":true}', { status: 200 }))
       .mockResolvedValueOnce(new Response('{"errcode":0}', { status: 200 }))
-      .mockResolvedValueOnce(new Response('{"code":0}', { status: 200 }));
+      .mockResolvedValueOnce(new Response('{"code":0}', { status: 200 }))
+      .mockResolvedValueOnce(new Response('{"code":200}', { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(
@@ -69,10 +70,19 @@ describe('notification channel test delivery', () => {
         channel('serverchan', { sendKey: 'SCT-test-send-key' }),
       ),
     ).resolves.toMatchObject({ provider: 'serverchan' });
+    await expect(
+      sendNotificationChannelTest(
+        channel('pushplus', { token: 'pushplus-token', topic: 'chronicle' }),
+      ),
+    ).resolves.toMatchObject({ provider: 'pushplus' });
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     expect((fetchMock.mock.calls[1]?.[1] as RequestInit).body).toContain('msgtype');
     expect((fetchMock.mock.calls[2]?.[1] as RequestInit).body).toContain('desp');
+    expect(fetchMock.mock.calls[3]?.[0] as string).toBe('https://www.pushplus.plus/send');
+    expect((fetchMock.mock.calls[3]?.[1] as RequestInit).body).toContain(
+      'pushplus-token',
+    );
   });
 
   it('fails when a provider returns an application-level error', async () => {
