@@ -1,0 +1,1 @@
+ALTER TABLE "asset_statuses" ADD COLUMN "deleted_at" timestamp with time zone;

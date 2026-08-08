@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+
+# builds and tests
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# local configuration
+.env
+.env.*
+!.env.example
+
+# runtime data
+.data/
+attachments/
+exports/
+
+# editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+.pi/
+
+# logs
+*.log
+pnpm-debug.log*

@@ -1,0 +1,105 @@
+name: chronicle
+
+x-app-environment: &app-environment
+  NODE_ENV: production
+  DATABASE_URL: postgres://chronicle:${POSTGRES_PASSWORD:-chronicle-change-me}@postgres:5432/chronicle
+  APP_TIME_ZONE: ${APP_TIME_ZONE:-Asia/Shanghai}
+  APP_BASE_CURRENCY: ${APP_BASE_CURRENCY:-CNY}
+  FRANKFURTER_BASE_URL: ${FRANKFURTER_BASE_URL:-https://api.frankfurter.dev/v2}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  COOKIE_SECURE: ${COOKIE_SECURE:-false}
+  APP_ORIGIN: ${APP_ORIGIN:-}
+  APP_MASTER_KEY: ${APP_MASTER_KEY:-}
+  WEB_DIST_DIR: /app/web
+  MIGRATIONS_DIR: /app/migrations
+  ATTACHMENTS_DIR: /data/attachments
+  ATTACHMENT_MAX_BYTES: ${ATTACHMENT_MAX_BYTES:-20971520}
+  ATTACHMENT_MAX_COUNT_PER_ASSET: ${ATTACHMENT_MAX_COUNT_PER_ASSET:-50}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+  TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+  REMINDER_WEBHOOK_URL: ${REMINDER_WEBHOOK_URL:-}
+  REMINDER_WEBHOOK_SECRET: ${REMINDER_WEBHOOK_SECRET:-}
+  REMINDER_POLL_INTERVAL_MS: ${REMINDER_POLL_INTERVAL_MS:-10000}
+  REMINDER_EXPANSION_DAYS: ${REMINDER_EXPANSION_DAYS:-400}
+  REMINDER_DELIVERY_MAX_ATTEMPTS: ${REMINDER_DELIVERY_MAX_ATTEMPTS:-4}
+  REMINDER_CLAIM_LIMIT: ${REMINDER_CLAIM_LIMIT:-20}
+
+x-app-security: &app-security
+  init: true
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: chronicle
+      POSTGRES_USER: chronicle
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-chronicle-change-me}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U chronicle -d chronicle']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    build:
+      context: .
+    image: chronicle:local
+    command: ['node', 'api/dist/cli/migrate.js']
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    <<: *app-security
+    image: chronicle:local
+    environment: *app-environment
+    ports:
+      - '${CHRONICLE_PORT:-3000}:3000'
+    volumes:
+      - attachments:/data/attachments
+      - exports:/data/exports
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  worker:
+    <<: *app-security
+    image: chronicle:local
+    command: ['node', 'worker/dist/main.js']
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:
+  attachments:
+  exports:

@@ -1,0 +1,20 @@
+packages:
+  - apps/*
+  - packages/*
+
+allowBuilds:
+  argon2: true
+  esbuild: true
+
+catalog:
+  '@types/node': 26.1.2
+  tsx: 4.23.7
+  tsup: 8.5.1
+  typescript: 6.0.3
+  vitest: 4.1.10
+  zod: 4.4.3
+
+minimumReleaseAgeExclude:
+  - '@tanstack/react-router@1.170.19'
+  - '@tanstack/router-core@1.171.16'
+  - tsx@4.23.7

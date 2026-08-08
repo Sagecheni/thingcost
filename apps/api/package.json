@@ -1,0 +1,46 @@
+{
+  "name": "@thingcost/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsup",
+    "start": "node dist/server.js",
+    "migrate": "node dist/cli/migrate.js",
+    "reset-password": "node dist/cli/reset-password.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/cookie": "11.1.2",
+    "@fastify/multipart": "^10.1.0",
+    "@fastify/rate-limit": "11.2.0",
+    "@fastify/sensible": "6.0.4",
+    "@fastify/static": "10.1.2",
+    "@fastify/swagger": "9.8.1",
+    "@fastify/swagger-ui": "6.1.1",
+    "@thingcost/config": "workspace:*",
+    "@thingcost/contracts": "workspace:*",
+    "@thingcost/database": "workspace:*",
+    "@thingcost/domain": "workspace:*",
+    "archiver": "^8.0.0",
+    "argon2": "0.45.1",
+    "decimal.js": "10.6.0",
+    "drizzle-orm": "0.45.2",
+    "fastify": "5.11.2",
+    "fastify-type-provider-zod": "7.0.0",
+    "sharp": "^0.35.3",
+    "yauzl": "^3.4.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/archiver": "^8.0.0",
+    "@types/node": "catalog:",
+    "@types/yauzl": "^3.4.0",
+    "tsup": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

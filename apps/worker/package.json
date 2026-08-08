@@ -1,0 +1,28 @@
+{
+  "name": "@thingcost/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "tsup",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@thingcost/config": "workspace:*",
+    "@thingcost/database": "workspace:*",
+    "@thingcost/domain": "workspace:*",
+    "drizzle-orm": "0.45.2",
+    "pg-boss": "12.27.0",
+    "pino": "10.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsup": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

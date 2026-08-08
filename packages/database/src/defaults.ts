@@ -1,0 +1,83 @@
+export const defaultAssetStatuses = [
+  {
+    code: 'in_use',
+    name: '使用中',
+    countsTowardService: true,
+    ownershipState: 'held',
+    sortOrder: 10,
+  },
+  {
+    code: 'idle',
+    name: '闲置',
+    countsTowardService: true,
+    ownershipState: 'held',
+    sortOrder: 20,
+  },
+  {
+    code: 'lent',
+    name: '借出',
+    countsTowardService: true,
+    ownershipState: 'held',
+    sortOrder: 30,
+  },
+  {
+    code: 'in_repair',
+    name: '维修中',
+    countsTowardService: true,
+    ownershipState: 'held',
+    sortOrder: 40,
+  },
+  {
+    code: 'retired',
+    name: '退役',
+    countsTowardService: false,
+    ownershipState: 'held',
+    sortOrder: 50,
+  },
+  {
+    code: 'sold',
+    name: '已卖出',
+    countsTowardService: false,
+    ownershipState: 'disposed',
+    sortOrder: 60,
+  },
+  {
+    code: 'gifted',
+    name: '已赠送',
+    countsTowardService: false,
+    ownershipState: 'disposed',
+    sortOrder: 70,
+  },
+  {
+    code: 'discarded',
+    name: '已丢弃',
+    countsTowardService: false,
+    ownershipState: 'disposed',
+    sortOrder: 80,
+  },
+  {
+    code: 'lost',
+    name: '已遗失',
+    countsTowardService: false,
+    ownershipState: 'disposed',
+    sortOrder: 90,
+  },
+  {
+    code: 'returned',
+    name: '已退货',
+    countsTowardService: false,
+    ownershipState: 'disposed',
+    sortOrder: 100,
+  },
+] as const;
+
+export const defaultCategories = [
+  { name: '数码', icon: 'cpu', color: '#7e9f72', sortOrder: 10 },
+  { name: '家电', icon: 'plug', color: '#7892a8', sortOrder: 20 },
+  { name: '摄影', icon: 'camera', color: '#a47f69', sortOrder: 30 },
+  { name: '工具', icon: 'wrench', color: '#aa8c59', sortOrder: 40 },
+  { name: '服饰', icon: 'shirt', color: '#a77c92', sortOrder: 50 },
+  { name: '交通', icon: 'bike', color: '#738e91', sortOrder: 60 },
+  { name: '家居', icon: 'armchair', color: '#9a8e72', sortOrder: 70 },
+  { name: '其他', icon: 'box', color: '#858b86', sortOrder: 999 },
+] as const;
