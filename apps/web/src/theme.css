@@ -1,0 +1,243 @@
+/* 物纪 · Chronicle — 档案 UI · Token 层
+ *
+ * 结构取自 shadcn/ui，气质是纸质档案：
+ *   暖中性（所有灰都偏暖，不用纯灰）· 单一墨青强调 · 细线为主 · 4px 圆角
+ *
+ * 换气质只需要改本文件的变量，组件代码一行不动。
+ * 亮色为主；暗色是同一套语义的暖调深色版本，不是简单反相。
+ */
+
+/* 层级顺序：preflight(base) < 遗留样式 < 新组件(components/utilities)
+ *
+ * 必须在 @import 之前声明。遗留 CSS 通过 legacy.css 以 layer(legacy) 导入，
+ * 这样它既压得住 Tailwind 的 preflight（旧页面继续正常显示），
+ * 又压不过新组件的 utility（改造过的页面立即生效）。
+ * 全部页面改造完成后，legacy 层连同三个 CSS 文件一起删除。 */
+@layer theme, base, legacy, components, utilities;
+
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* 主题由 ThemeToggle 写在 html[data-theme] 上，取值 system | light | dark。
+ * 无属性（React 挂载前）等同 system。 */
+@custom-variant dark {
+  &:where([data-theme='dark'], [data-theme='dark'] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(
+        :root:not([data-theme='light']):not([data-theme='dark']),
+        :root:not([data-theme='light']):not([data-theme='dark']) *
+      ) {
+      @slot;
+    }
+  }
+}
+
+/* ── 亮色（主）─────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+
+  --background: #fdfcfa; /* 象牙白，不是纯白 */
+  --foreground: #1c1a17; /* 墨黑带暖，不是 #000 */
+
+  --card: #ffffff;
+  --card-foreground: #1c1a17;
+  --popover: #ffffff;
+  --popover-foreground: #1c1a17;
+
+  --primary: #2f5d62; /* 墨青 · 全局唯一强调色 */
+  --primary-foreground: #fdfcfa;
+
+  --secondary: #f4f1ec;
+  --secondary-foreground: #3a362f;
+  --muted: #f4f1ec;
+  --muted-foreground: #6b655c;
+  --accent: #efebe4; /* hover 垫色 */
+  --accent-foreground: #1c1a17;
+
+  --success: #3f6b47;
+  --success-subtle: #eaf0ea;
+  --warning: #8f6015;
+  --warning-subtle: #f7f0e1;
+  --destructive: #a33a2e;
+  --destructive-foreground: #fdfcfa;
+  --destructive-subtle: #f7e9e6;
+
+  --border: #e5e0d8; /* 暖线 —— 档案感的关键一笔 */
+  --input: #dbd5ca; /* 输入框边框比分隔线深一档，保证可见 */
+  --ring: #2f5d62;
+
+  --radius: 4px;
+
+  /* 阴影只有两级，且极轻。档案界面靠线和留白分层，不靠浮起。 */
+  --shadow-paper: 0 1px 2px rgb(28 26 23 / 5%);
+  --shadow-raised: 0 4px 12px rgb(28 26 23 / 8%);
+}
+
+/* ── 暗色 · 跟随系统 ───────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):not([data-theme='dark']) {
+    color-scheme: dark;
+
+    --background: #1a1917; /* 暖深色，不是蓝黑 */
+    --foreground: #ede8e0;
+
+    --card: #232220;
+    --card-foreground: #ede8e0;
+    --popover: #232220;
+    --popover-foreground: #ede8e0;
+
+    --primary: #7fb3b8; /* 墨青在深底上提亮才够对比 */
+    --primary-foreground: #14201f;
+
+    --secondary: #2c2a27;
+    --secondary-foreground: #ede8e0;
+    --muted: #2c2a27;
+    --muted-foreground: #a39d93;
+    --accent: #33312d;
+    --accent-foreground: #ede8e0;
+
+    --success: #7fa98a;
+    --success-subtle: #232d26;
+    --warning: #d6a44e;
+    --warning-subtle: #2e2718;
+    --destructive: #d9705f;
+    --destructive-foreground: #1a1917;
+    --destructive-subtle: #2f211e;
+
+    --border: #35332f;
+    --input: #423f3a;
+    --ring: #7fb3b8;
+
+    --shadow-paper: 0 1px 2px rgb(0 0 0 / 30%);
+    --shadow-raised: 0 4px 12px rgb(0 0 0 / 40%);
+  }
+}
+
+/* ── 暗色 · 手动指定（与上面同值，选择器不同不能合并）───────── */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --background: #1a1917;
+  --foreground: #ede8e0;
+
+  --card: #232220;
+  --card-foreground: #ede8e0;
+  --popover: #232220;
+  --popover-foreground: #ede8e0;
+
+  --primary: #7fb3b8;
+  --primary-foreground: #14201f;
+
+  --secondary: #2c2a27;
+  --secondary-foreground: #ede8e0;
+  --muted: #2c2a27;
+  --muted-foreground: #a39d93;
+  --accent: #33312d;
+  --accent-foreground: #ede8e0;
+
+  --success: #7fa98a;
+  --success-subtle: #232d26;
+  --warning: #d6a44e;
+  --warning-subtle: #2e2718;
+  --destructive: #d9705f;
+  --destructive-foreground: #1a1917;
+  --destructive-subtle: #2f211e;
+
+  --border: #35332f;
+  --input: #423f3a;
+  --ring: #7fb3b8;
+
+  --shadow-paper: 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow-raised: 0 4px 12px rgb(0 0 0 / 40%);
+}
+
+/* 手动指定亮色时压回 light，覆盖系统偏好 */
+[data-theme='light'] {
+  color-scheme: light;
+}
+
+/* ── 映射给 Tailwind ──────────────────────────────────────── */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-subtle: var(--destructive-subtle);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+
+  --shadow-paper: var(--shadow-paper);
+  --shadow-raised: var(--shadow-raised);
+
+  /* 中文优先的系统字体栈。不引入 web font —— 档案感靠排版和留白建立，
+   * 不靠字体文件。CJK 衬线 subset 的成本不值得。 */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB',
+    'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'SFMono-Regular', Menlo, monospace;
+}
+
+/* ── 基础层 ───────────────────────────────────────────────── */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    /* 中文行高给足；字距永远不用负值，中文负字距会糊成一团 */
+    line-height: 1.7;
+    letter-spacing: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 标题行高收紧，但字距仍不为负 */
+  h1,
+  h2,
+  h3,
+  h4 {
+    line-height: 1.35;
+    letter-spacing: 0;
+  }
+
+  /* 金额、日期、计数一律等宽数字对齐 —— 这个产品全是数字列 */
+  .tnum,
+  [data-slot='amount'] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--primary) 22%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}

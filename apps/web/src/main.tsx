@@ -4,9 +4,8 @@ import { createRoot } from 'react-dom/client';
 
 import { App } from './App.js';
 import { I18nProvider } from './lib/i18n.js';
-import './styles.css';
-import './pixel-theme.css';
-import './dashboard-report.css';
+import './theme.css';
+import './legacy.css';
 
 const queryClient = new QueryClient({
   defaultOptions: {

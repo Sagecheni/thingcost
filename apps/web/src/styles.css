@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+/* 遗留样式层。Tailwind 入口已移至 theme.css —— 页面改造完成后本文件整体删除。 */
 
 :root {
   color-scheme: light dark;
