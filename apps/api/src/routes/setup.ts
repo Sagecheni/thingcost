@@ -138,6 +138,7 @@ export function registerSetupRoutes(
         settings: {
           timeZone: request.body.timeZone,
           baseCurrency: request.body.baseCurrency,
+          baseCurrencyLocked: false,
           personalApiTokensEnabled: false,
           initializedAt: initializedAt.toISOString(),
         },

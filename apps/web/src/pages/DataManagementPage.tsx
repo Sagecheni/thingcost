@@ -132,171 +132,212 @@ export function DataManagementPage() {
         </div>
       </header>
 
-      <section className="data-section" aria-labelledby="portable-export-title">
-        <div className="data-section-heading">
-          <span className="data-section-icon" aria-hidden="true">
-            <FileArchive size={24} />
-          </span>
-          <div>
-            <h2 id="portable-export-title">完整数据归档</h2>
-            <p>Chronicle Export v1</p>
-          </div>
+      <section className="data-overview-strip" aria-label="数据安全概览">
+        <div>
+          <span>归档格式</span>
+          <strong>Chronicle Export v1</strong>
+          <small>JSON · CSV · 附件 · SHA-256</small>
         </div>
-
-        <div className="data-export-layout">
-          <div>
-            <div className="data-format-list" aria-label="归档内容">
-              <span>JSON 记录</span>
-              <span>CSV 表格</span>
-              <span>原始附件</span>
-              <span>SHA-256 清单</span>
-            </div>
-            <p className="data-security-note">
-              <ShieldCheck size={17} aria-hidden="true" />
-              不包含管理员密码、登录会话和通知渠道密钥
-            </p>
-            {lastExportedAt && (
-              <p className="muted-copy data-export-time">
-                本次归档生成于 {lastExportedAt.toLocaleString('zh-CN')}
-              </p>
-            )}
-            {exportMutation.isError && (
-              <p className="form-error">{exportMutation.error.message}</p>
-            )}
-          </div>
-
-          <button
-            className="primary-action data-export-button"
-            type="button"
-            disabled={exportMutation.isPending}
-            onClick={() => exportMutation.mutate()}
-          >
-            <Download size={18} aria-hidden="true" />
-            {exportMutation.isPending ? '正在生成归档…' : '下载完整归档'}
-          </button>
+        <div>
+          <span>恢复方式</span>
+          <strong>先预览，再覆盖</strong>
+          <small>当前管理员和会话保持不变</small>
+        </div>
+        <div>
+          <span>密钥策略</span>
+          <strong>默认不导出</strong>
+          <small>密码、会话和通知密钥不进入归档</small>
         </div>
       </section>
 
-      <section className="data-section" aria-labelledby="portable-import-title">
-        <div className="data-section-heading">
-          <span className="data-section-icon" aria-hidden="true">
-            <Upload size={24} />
-          </span>
-          <div>
-            <h2 id="portable-import-title">从归档恢复</h2>
-            <p>校验 → 冲突预览 → 确认覆盖</p>
-          </div>
-        </div>
-
-        <div className="data-import-layout">
-          <div>
-            <p className="muted-copy">
-              仅接受本应用导出的 Chronicle Export v1 ZIP。导入会保留当前管理员，但以
-              replace 模式清空并覆盖业务数据。
-            </p>
-            <label className="secondary-action data-file-picker" htmlFor={fileInputId}>
-              <Upload size={16} aria-hidden="true" />
-              选择归档文件
-            </label>
-            <input
-              id={fileInputId}
-              className="visually-hidden"
-              type="file"
-              accept=".zip,application/zip"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = '';
-                if (file) previewMutation.mutate(file);
-              }}
-            />
-            {previewMutation.isPending && (
-              <p className="muted-copy data-export-time">正在校验归档并生成冲突预览…</p>
-            )}
-            {previewMutation.isError && (
-              <p className="form-error">{previewMutation.error.message}</p>
-            )}
-            {applyMutation.isError && (
-              <p className="form-error">{applyMutation.error.message}</p>
-            )}
-          </div>
-
-          {preview && (
-            <div className="data-import-preview">
-              <div className="data-format-list" aria-label="归档规模">
-                {countSummary('物品', preview.archive.assets)}
-                {countSummary('订单', preview.archive.purchaseOrders)}
-                {countSummary('种草', preview.archive.wishlistItems)}
-                {countSummary('提醒', preview.archive.reminders)}
-                {countSummary('附件', preview.archive.attachmentFiles)}
-              </div>
-              <div className="data-format-list" aria-label="当前实例">
-                {countSummary('当前物品', preview.current.assets)}
-                {countSummary('当前订单', preview.current.purchaseOrders)}
-                {countSummary('当前种草', preview.current.wishlistItems)}
-              </div>
-
-              {preview.conflicts.length > 0 && (
-                <ul className="data-conflict-list">
-                  {preview.conflicts.map((conflict) => (
-                    <li key={`${conflict.code}-${conflict.message}`}>
-                      <AlertTriangle size={15} aria-hidden="true" />
-                      <div>
-                        <strong>{conflict.message}</strong>
-                        {conflict.detail && <p>{conflict.detail}</p>}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              <label className="data-confirm-row">
-                <input
-                  type="checkbox"
-                  checked={confirmReplace}
-                  onChange={(event) => setConfirmReplace(event.target.checked)}
-                />
-                <span>我确认以 replace 模式覆盖当前业务数据</span>
-              </label>
-
-              <button
-                className="primary-action data-export-button"
-                type="button"
-                disabled={!preview.canApply || !confirmReplace || applyMutation.isPending}
-                onClick={() =>
-                  applyMutation.mutate({
-                    importId: preview.importId,
-                    mode: 'replace',
-                    confirmReplace: true,
-                  })
-                }
-              >
-                {applyMutation.isPending ? '正在导入…' : '确认导入并覆盖'}
-              </button>
-              <p className="muted-copy data-export-time">
-                预览有效至 {new Date(preview.expiresAt).toLocaleString('zh-CN')}
-              </p>
+      <div className="data-vault-grid">
+        <section
+          className="data-section data-section-export"
+          aria-labelledby="portable-export-title"
+        >
+          <div className="data-section-heading">
+            <span className="data-section-icon" aria-hidden="true">
+              <FileArchive size={24} />
+            </span>
+            <div>
+              <h2 id="portable-export-title">完整数据归档</h2>
+              <p>Chronicle Export v1</p>
             </div>
-          )}
+          </div>
 
-          {result && (
-            <div className="data-import-result">
-              <p>
-                已恢复物品 {result.restored.assets} 件、订单{' '}
-                {result.restored.purchaseOrders} 笔、附件{' '}
-                {result.restored.attachmentFiles} 个。
+          <div className="data-export-layout">
+            <div>
+              <div className="data-format-list" aria-label="归档内容">
+                <span>JSON 记录</span>
+                <span>CSV 表格</span>
+                <span>原始附件</span>
+                <span>SHA-256 清单</span>
+              </div>
+              <p className="data-security-note">
+                <ShieldCheck size={17} aria-hidden="true" />
+                不包含管理员密码、登录会话和通知渠道密钥
               </p>
-              {result.skipped.notificationChannels > 0 && (
-                <p className="muted-copy">
-                  已跳过 {result.skipped.notificationChannels}{' '}
-                  个通知渠道（归档不含密钥）。
+              {lastExportedAt && (
+                <p className="muted-copy data-export-time">
+                  本次归档生成于 {lastExportedAt.toLocaleString('zh-CN')}
                 </p>
               )}
+              {exportMutation.isError && (
+                <p className="form-error">{exportMutation.error.message}</p>
+              )}
             </div>
-          )}
-        </div>
-      </section>
 
-      <section className="data-section" aria-labelledby="personal-api-title">
+            <button
+              className="primary-action data-export-button"
+              type="button"
+              disabled={exportMutation.isPending}
+              onClick={() => exportMutation.mutate()}
+            >
+              <Download size={18} aria-hidden="true" />
+              {exportMutation.isPending ? '正在生成归档…' : '下载完整归档'}
+            </button>
+          </div>
+        </section>
+
+        <section
+          className="data-section data-section-import"
+          aria-labelledby="portable-import-title"
+        >
+          <div className="data-section-heading">
+            <span className="data-section-icon" aria-hidden="true">
+              <Upload size={24} />
+            </span>
+            <div>
+              <h2 id="portable-import-title">从归档恢复</h2>
+              <div className="data-process-steps" aria-label="恢复步骤">
+                <span>
+                  <b>01</b> 校验
+                </span>
+                <span>
+                  <b>02</b> 冲突预览
+                </span>
+                <span>
+                  <b>03</b> 确认覆盖
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="data-import-layout">
+            <div>
+              <p className="muted-copy">
+                仅接受本应用导出的 Chronicle Export v1 ZIP。导入会保留当前管理员，但以
+                replace 模式清空并覆盖业务数据。
+              </p>
+              <label className="secondary-action data-file-picker" htmlFor={fileInputId}>
+                <Upload size={16} aria-hidden="true" />
+                选择归档文件
+              </label>
+              <input
+                id={fileInputId}
+                className="visually-hidden"
+                type="file"
+                accept=".zip,application/zip"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = '';
+                  if (file) previewMutation.mutate(file);
+                }}
+              />
+              {previewMutation.isPending && (
+                <p className="muted-copy data-export-time">正在校验归档并生成冲突预览…</p>
+              )}
+              {previewMutation.isError && (
+                <p className="form-error">{previewMutation.error.message}</p>
+              )}
+              {applyMutation.isError && (
+                <p className="form-error">{applyMutation.error.message}</p>
+              )}
+            </div>
+
+            {preview && (
+              <div className="data-import-preview">
+                <div className="data-format-list" aria-label="归档规模">
+                  {countSummary('物品', preview.archive.assets)}
+                  {countSummary('订单', preview.archive.purchaseOrders)}
+                  {countSummary('种草', preview.archive.wishlistItems)}
+                  {countSummary('提醒', preview.archive.reminders)}
+                  {countSummary('附件', preview.archive.attachmentFiles)}
+                </div>
+                <div className="data-format-list" aria-label="当前实例">
+                  {countSummary('当前物品', preview.current.assets)}
+                  {countSummary('当前订单', preview.current.purchaseOrders)}
+                  {countSummary('当前种草', preview.current.wishlistItems)}
+                </div>
+
+                {preview.conflicts.length > 0 && (
+                  <ul className="data-conflict-list">
+                    {preview.conflicts.map((conflict) => (
+                      <li key={`${conflict.code}-${conflict.message}`}>
+                        <AlertTriangle size={15} aria-hidden="true" />
+                        <div>
+                          <strong>{conflict.message}</strong>
+                          {conflict.detail && <p>{conflict.detail}</p>}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <label className="data-confirm-row">
+                  <input
+                    type="checkbox"
+                    checked={confirmReplace}
+                    onChange={(event) => setConfirmReplace(event.target.checked)}
+                  />
+                  <span>我确认以 replace 模式覆盖当前业务数据</span>
+                </label>
+
+                <button
+                  className="primary-action data-export-button"
+                  type="button"
+                  disabled={
+                    !preview.canApply || !confirmReplace || applyMutation.isPending
+                  }
+                  onClick={() =>
+                    applyMutation.mutate({
+                      importId: preview.importId,
+                      mode: 'replace',
+                      confirmReplace: true,
+                    })
+                  }
+                >
+                  {applyMutation.isPending ? '正在导入…' : '确认导入并覆盖'}
+                </button>
+                <p className="muted-copy data-export-time">
+                  预览有效至 {new Date(preview.expiresAt).toLocaleString('zh-CN')}
+                </p>
+              </div>
+            )}
+
+            {result && (
+              <div className="data-import-result">
+                <p>
+                  已恢复物品 {result.restored.assets} 件、订单{' '}
+                  {result.restored.purchaseOrders} 笔、附件{' '}
+                  {result.restored.attachmentFiles} 个。
+                </p>
+                {result.skipped.notificationChannels > 0 && (
+                  <p className="muted-copy">
+                    已跳过 {result.skipped.notificationChannels}{' '}
+                    个通知渠道（归档不含密钥）。
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+
+      <section
+        className="data-section data-section-api"
+        aria-labelledby="personal-api-title"
+      >
         <div className="data-section-heading">
           <span className="data-section-icon" aria-hidden="true">
             <KeyRound size={24} />

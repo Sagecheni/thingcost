@@ -1,15 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
+import { Link, useRouterState } from '@tanstack/react-router';
 import {
-  Archive,
   Bell,
-  CircleGauge,
   CreditCard,
-  DatabaseBackup,
+  Database,
+  Gauge,
+  Heart,
   LogOut,
-  ReceiptText,
+  Package,
+  ScrollText,
   Settings,
-  Sprout,
   Trash2,
 } from 'lucide-react';
 import type { PropsWithChildren } from 'react';
@@ -18,6 +18,7 @@ import { brand } from '@thingcost/domain';
 
 import { api } from '../lib/api.js';
 import { useI18n } from '../lib/i18n.js';
+import { PixelIcon } from './PixelIcon.js';
 import { ThemeToggle } from './ThemeToggle.js';
 import { queryKeys } from '../lib/query-keys.js';
 
@@ -28,6 +29,11 @@ interface AppShellProps extends PropsWithChildren {
 export function AppShell({ children, username }: AppShellProps) {
   const queryClient = useQueryClient();
   const { locale, setLocale, t } = useI18n();
+  const currentPathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  const isRecycleBinRoute = currentPathname.startsWith('/assets/recycle-bin');
+  const isDashboardReport = currentPathname === '/';
   const logout = useMutation({
     mutationFn: api.logout,
     onSuccess: async () => {
@@ -36,7 +42,10 @@ export function AppShell({ children, username }: AppShellProps) {
   });
 
   return (
-    <div className="app-frame">
+    <div className={`app-frame${isDashboardReport ? ' app-frame-dashboard-report' : ''}`}>
+      <a className="skip-link" href="#chronicle-main">
+        跳到主要内容
+      </a>
       <aside className="sidebar">
         <Link className="brand-lockup" to="/" aria-label={t('shell.brandAria')}>
           <span className="brand-mark" aria-hidden="true">
@@ -55,15 +64,24 @@ export function AppShell({ children, username }: AppShellProps) {
             activeOptions={{ exact: true }}
             to="/"
           >
-            <CircleGauge size={18} aria-hidden="true" />
+            {isDashboardReport ? (
+              <Gauge aria-hidden="true" size={19} strokeWidth={1.8} />
+            ) : (
+              <PixelIcon name="home" size={20} />
+            )}
             <span>{t('nav.overview')}</span>
           </Link>
           <Link
             className="nav-item"
             activeProps={{ className: 'nav-item nav-item-active' }}
+            activeOptions={{ exact: isRecycleBinRoute }}
             to="/assets"
           >
-            <Archive size={18} aria-hidden="true" />
+            {isDashboardReport ? (
+              <Package aria-hidden="true" size={19} strokeWidth={1.8} />
+            ) : (
+              <PixelIcon name="chest" size={20} />
+            )}
             <span>{t('nav.assets')}</span>
           </Link>
           <Link
@@ -71,7 +89,11 @@ export function AppShell({ children, username }: AppShellProps) {
             activeProps={{ className: 'nav-item nav-item-active' }}
             to="/assets/recycle-bin"
           >
-            <Trash2 size={18} aria-hidden="true" />
+            {isDashboardReport ? (
+              <Trash2 aria-hidden="true" size={19} strokeWidth={1.8} />
+            ) : (
+              <PixelIcon name="trash" size={20} />
+            )}
             <span>{t('nav.recycleBin')}</span>
           </Link>
           <Link
@@ -79,7 +101,11 @@ export function AppShell({ children, username }: AppShellProps) {
             activeProps={{ className: 'nav-item nav-item-active' }}
             to="/orders"
           >
-            <ReceiptText size={18} aria-hidden="true" />
+            {isDashboardReport ? (
+              <ScrollText aria-hidden="true" size={19} strokeWidth={1.8} />
+            ) : (
+              <PixelIcon name="receipt" size={20} />
+            )}
             <span>{t('nav.orders')}</span>
           </Link>
           <Link
@@ -87,7 +113,11 @@ export function AppShell({ children, username }: AppShellProps) {
             activeProps={{ className: 'nav-item nav-item-active' }}
             to="/wishlist"
           >
-            <Sprout size={18} aria-hidden="true" />
+            {isDashboardReport ? (
+              <Heart aria-hidden="true" size={19} strokeWidth={1.8} />
+            ) : (
+              <PixelIcon name="leaf" size={20} />
+            )}
             <span>{t('nav.wishlist')}</span>
           </Link>
           <Link
@@ -95,7 +125,11 @@ export function AppShell({ children, username }: AppShellProps) {
             activeProps={{ className: 'nav-item nav-item-active' }}
             to="/subscriptions"
           >
-            <CreditCard size={18} aria-hidden="true" />
+            {isDashboardReport ? (
+              <CreditCard aria-hidden="true" size={19} strokeWidth={1.8} />
+            ) : (
+              <PixelIcon name="coin" size={20} />
+            )}
             <span>{t('nav.subscriptions')}</span>
           </Link>
           <Link
@@ -103,7 +137,11 @@ export function AppShell({ children, username }: AppShellProps) {
             activeProps={{ className: 'nav-item nav-item-active' }}
             to="/reminders"
           >
-            <Bell size={18} aria-hidden="true" />
+            {isDashboardReport ? (
+              <Bell aria-hidden="true" size={19} strokeWidth={1.8} />
+            ) : (
+              <PixelIcon name="bell" size={20} />
+            )}
             <span>{t('nav.reminders')}</span>
           </Link>
           <Link
@@ -111,7 +149,11 @@ export function AppShell({ children, username }: AppShellProps) {
             activeProps={{ className: 'nav-item nav-item-active' }}
             to="/data"
           >
-            <DatabaseBackup size={18} aria-hidden="true" />
+            {isDashboardReport ? (
+              <Database aria-hidden="true" size={19} strokeWidth={1.8} />
+            ) : (
+              <PixelIcon name="disk" size={20} />
+            )}
             <span>{t('nav.data')}</span>
           </Link>
         </nav>
@@ -119,7 +161,7 @@ export function AppShell({ children, username }: AppShellProps) {
         <div className="sidebar-footer">
           <div className="sidebar-theme-row">
             <span>{t('theme.label')}</span>
-            <ThemeToggle />
+            <ThemeToggle report={isDashboardReport} />
           </div>
           <div className="sidebar-locale-row">
             <span>{t('locale.label')}</span>
@@ -135,7 +177,11 @@ export function AppShell({ children, username }: AppShellProps) {
             activeProps={{ className: 'nav-item nav-item-active' }}
             to="/settings"
           >
-            <Settings size={18} aria-hidden="true" />
+            {isDashboardReport ? (
+              <Settings aria-hidden="true" size={19} strokeWidth={1.8} />
+            ) : (
+              <PixelIcon name="gear" size={20} />
+            )}
             <span>{t('nav.settings')}</span>
           </Link>
           <button
@@ -144,7 +190,11 @@ export function AppShell({ children, username }: AppShellProps) {
             onClick={() => logout.mutate()}
             disabled={logout.isPending}
           >
-            <LogOut size={18} aria-hidden="true" />
+            {isDashboardReport ? (
+              <LogOut aria-hidden="true" size={19} strokeWidth={1.8} />
+            ) : (
+              <PixelIcon name="door" size={20} />
+            )}
             <span>
               {logout.isPending ? t('auth.loggingOut') : t('auth.logout', { username })}
             </span>
@@ -179,11 +229,13 @@ export function AppShell({ children, username }: AppShellProps) {
           >
             {locale === 'zh-CN' ? 'EN' : '中'}
           </button>
-          <ThemeToggle />
+          <ThemeToggle report={isDashboardReport} />
         </div>
       </div>
 
-      <main className="main-content">{children}</main>
+      <main className="main-content" id="chronicle-main">
+        {children}
+      </main>
     </div>
   );
 }

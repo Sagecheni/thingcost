@@ -1,0 +1,239 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-08T19:12:00.000Z",
+  "title": "Design System: 物纪 · Chronicle",
+  "extensions": {
+    "colorMeta": {
+      "phosphor-black": {
+        "role": "neutral",
+        "displayName": "Phosphor Black",
+        "canonical": "#0f1517",
+        "tonalRamp": [
+          "#070b0c",
+          "#0b1113",
+          "#0f1517",
+          "#172225",
+          "#1d2b2e",
+          "#2c3c3f",
+          "#5f716e",
+          "#f3e8c7"
+        ]
+      },
+      "safety-orange": {
+        "role": "primary",
+        "displayName": "Safety Orange",
+        "canonical": "#f08b32",
+        "tonalRamp": [
+          "#311303",
+          "#572308",
+          "#873b10",
+          "#b95613",
+          "#d96d21",
+          "#f08b32",
+          "#f6ad65",
+          "#ffe2c2"
+        ]
+      },
+      "amber-status": {
+        "role": "secondary",
+        "displayName": "Amber Status",
+        "canonical": "#f2b84b",
+        "tonalRamp": [
+          "#38250a",
+          "#5e3f12",
+          "#805516",
+          "#996316",
+          "#c28728",
+          "#f2b84b",
+          "#f8d27d",
+          "#fff0c5"
+        ]
+      },
+      "signal-cyan": {
+        "role": "tertiary",
+        "displayName": "Signal Cyan",
+        "canonical": "#70d6d0",
+        "tonalRamp": [
+          "#082728",
+          "#0f4041",
+          "#146060",
+          "#087a7a",
+          "#2da7a2",
+          "#70d6d0",
+          "#a1e8e0",
+          "#daf9f2"
+        ]
+      },
+      "signal-lime": {
+        "role": "tertiary",
+        "displayName": "Signal Lime",
+        "canonical": "#c7e36b",
+        "tonalRamp": [
+          "#24300a",
+          "#3c5213",
+          "#537b2a",
+          "#709c3a",
+          "#94bd4e",
+          "#c7e36b",
+          "#dfef9d",
+          "#f5fbdc"
+        ]
+      },
+      "signal-rose": {
+        "role": "tertiary",
+        "displayName": "Signal Rose",
+        "canonical": "#ff8b82",
+        "tonalRamp": [
+          "#3a1112",
+          "#5e1d1e",
+          "#812929",
+          "#a83d39",
+          "#d55b53",
+          "#ff8b82",
+          "#ffb5ae",
+          "#ffe4e0"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Instrument Display",
+        "purpose": "Large page theses and the dashboard readout."
+      },
+      "body": {
+        "displayName": "Readable Chinese Body",
+        "purpose": "Longer explanations and form copy."
+      },
+      "label": {
+        "displayName": "Measurement Mono",
+        "purpose": "State, chart, route, and data labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "ambient-low",
+        "value": "0 7px 16px rgb(0 0 0 / 18%)",
+        "purpose": "Ordinary card separation."
+      },
+      {
+        "name": "ambient-featured",
+        "value": "0 18px 34px rgb(0 0 0 / 24%)",
+        "purpose": "Hero, auth, and featured readout surfaces."
+      },
+      {
+        "name": "key-press",
+        "value": "0 4px 0 color-mix(in srgb, var(--orange) 45%, #000), 0 10px 20px rgb(0 0 0 / 16%)",
+        "purpose": "Tactile primary action key only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-standard",
+        "value": "160ms ease",
+        "purpose": "Color, border, shadow, and focus transitions."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion",
+        "purpose": "Disables non-essential movement and preserves the task."
+      }
+    ],
+    "breakpoints": [
+      { "name": "rail-narrow", "value": "1080px" },
+      { "name": "mobile-rail", "value": "840px" },
+      { "name": "compact", "value": "560px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The orange commit key for actions that change or add a record.",
+      "html": "<button class=\"ds-btn-primary\">添加物品</button>",
+      "css": ".ds-btn-primary { color: #0a0f11; background: #f08b32; border: 2px solid #f08b32; border-radius: 2px; min-height: 44px; padding: 0 16px; font: 800 11px 'Courier New', monospace; box-shadow: 0 4px 0 #7f3d11, 0 10px 20px rgb(0 0 0 / 16%); transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; } .ds-btn-primary:hover { background: #f2b84b; border-color: #f2b84b; } .ds-btn-primary:focus-visible { outline: 2px solid #f2b84b; outline-offset: 3px; } .ds-btn-primary:active { transform: translateY(3px); box-shadow: 0 1px 0 #7f3d11; }"
+    },
+    {
+      "name": "Secondary Action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A non-destructive alternate action on a gunmetal surface.",
+      "html": "<button class=\"ds-btn-secondary\">打开提醒中心</button>",
+      "css": ".ds-btn-secondary { color: #f3e8c7; background: #172225; border: 1px solid #61716d; border-radius: 2px; min-height: 42px; padding: 0 14px; font: 800 11px 'Courier New', monospace; transition: background-color 160ms ease, border-color 160ms ease; } .ds-btn-secondary:hover { background: #1d2b2e; border-color: #70d6d0; } .ds-btn-secondary:focus-visible { outline: 2px solid #f2b84b; outline-offset: 3px; }"
+    },
+    {
+      "name": "Instrument Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "A labelled field with a deep control well and amber focus state.",
+      "html": "<label class=\"ds-field\">物品名称<input placeholder=\"例如：M5 MacBook Air\" /></label>",
+      "css": ".ds-field { display: grid; gap: 7px; color: #d0d7c6; font: 700 10px/1.45 'Courier New', monospace; } .ds-field input { min-height: 42px; padding: 9px 11px; color: #f3e8c7; background: #0a0f11; border: 1px solid #61716d; border-radius: 2px; font: 400 14px 'PingFang SC', system-ui, sans-serif; } .ds-field input:focus { border-color: #f2b84b; outline: 0; box-shadow: 0 0 0 3px rgb(242 184 75 / 22%); }"
+    },
+    {
+      "name": "Collection Rail",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "The stable desktop chassis and its active orange route key.",
+      "html": "<nav class=\"ds-rail\"><a class=\"ds-rail-item is-active\"><svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><circle cx=\"12\" cy=\"12\" r=\"8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/></svg>总览</a></nav>",
+      "css": ".ds-rail { display: grid; gap: 4px; width: 248px; padding: 24px 16px; background: #111b1d; border-right: 2px solid #3b4b4d; } .ds-rail-item { min-height: 42px; display: flex; gap: 11px; align-items: center; padding: 0 12px; color: #d0d7c6; border: 1px solid transparent; border-radius: 2px; font: 800 11px 'Courier New', monospace; text-decoration: none; } .ds-rail-item:hover { background: #172225; border-color: #3b4b4d; } .ds-rail-item.is-active { color: #0a0f11; background: #f08b32; border-color: #f08b32; }"
+    },
+    {
+      "name": "Signal Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "A compact textual state label; color never carries the meaning alone.",
+      "html": "<span class=\"ds-chip\">使用中</span>",
+      "css": ".ds-chip { display: inline-flex; min-height: 24px; align-items: center; padding: 0 8px; color: #c7e36b; background: #263d32; border: 1px solid #61716d; border-radius: 0; font: 800 9px 'Courier New', monospace; }"
+    },
+    {
+      "name": "Readout Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A flat instrument bay for cost, status, history, or a chart.",
+      "html": "<article class=\"ds-card\"><span class=\"ds-label\">当前净投入</span><strong>¥6,440.15</strong><small>数据口径完整</small></article>",
+      "css": ".ds-card { padding: 20px; color: #f3e8c7; background: #172225; border: 1px solid #3b4b4d; border-radius: 2px; box-shadow: 0 7px 16px rgb(0 0 0 / 18%); } .ds-label { color: #f2b84b; font: 700 10px/1.5 'Courier New', monospace; letter-spacing: .12em; text-transform: uppercase; } .ds-card strong { display: block; margin-top: 10px; font: 800 24px 'Courier New', monospace; } .ds-card small { display: block; margin-top: 10px; color: #9eada5; font: 400 11px/1.6 'PingFang SC', system-ui, sans-serif; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The collection desk instrument",
+    "overview": "Chronicle is designed like a small, carefully made piece of creator hardware on a personal desk: the rail is the instrument chassis, the orange action is the commit key, amber is the live readout, and every fact sits on a readable measurement surface. Pixel structure is functional rather than nostalgic decoration. It helps a single administrator scan cost, status, time, and next action without turning ownership into a game.\n\nThe visual world is phosphor-black and gunmetal with bone text, putty rules, safety-orange actions, and a restrained signal palette. Surfaces are flat and exact at rest; depth comes from tonal layering and soft ambient shadows.",
+    "keyCharacteristics": [
+      "Pixel-unit geometry: 8px rhythm, square controls, 2px corners, crisp borders.",
+      "Gunmetal chassis surfaces with bone readouts and amber/cyan/lime signal states.",
+      "A stable left instrument rail on desktop and compact horizontal controls on mobile.",
+      "One clear live readout per surface; no decorative gamification or fake telemetry.",
+      "Charts and history remain content-first, with the same palette as navigation and forms."
+    ],
+    "rules": [
+      {
+        "name": "The Signal Economy Rule",
+        "body": "Orange commits, amber reports, cyan supports, lime confirms, and rose warns. No signal color becomes page decoration.",
+        "section": "colors"
+      },
+      {
+        "name": "The Readout Rule",
+        "body": "Large mono numbers are for values people compare; body copy does not become mono just to look technical.",
+        "section": "typography"
+      },
+      {
+        "name": "The Chassis Rule",
+        "body": "A surface gets one structural border or one ambient shadow, never a stack of competing chrome.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use the 8px rhythm and square 2px corners across routes.",
+      "Do reserve orange for actions and active navigation, amber for readouts and focus, and signal colors for explicit state.",
+      "Do keep cost, status, activity, and recovery facts visible before decoration.",
+      "Do retain strong focus states, 42–44px touch targets, keyboard access, and readable Chinese body copy.",
+      "Do let empty, loading, error, and unknown-cost states teach the next action."
+    ],
+    "donts": [
+      "Don't turn the asset ledger into a game, score board, or decorative pixel-art toy.",
+      "Don't use emoji or arbitrary Unicode glyphs as interface icons; use the existing SVG icon system.",
+      "Don't use gradients for text, glassmorphism, pill-shaped card grids, or decorative side-stripe borders.",
+      "Don't use mono type for long prose or hide action labels behind icon-only controls on mobile.",
+      "Don't make unknown values look like zero or allow color alone to communicate a state."
+    ]
+  }
+}

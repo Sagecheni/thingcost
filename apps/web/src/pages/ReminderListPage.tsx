@@ -162,135 +162,150 @@ export function ReminderListPage() {
         </article>
       </section>
 
-      <section className="content-card upcoming-reminders-card">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Upcoming</p>
-            <h2>即将到期</h2>
+      <div className="reminder-workspace">
+        <section className="content-card upcoming-reminders-card">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Upcoming</p>
+              <h2>即将到期</h2>
+            </div>
+            <span className="status-badge">Worker 同步</span>
           </div>
-          <span className="status-badge">Worker 同步</span>
-        </div>
-        {upcoming.length === 0 ? (
-          <p className="muted-copy">
-            暂无已展开的提醒实例。Worker 会持续把周期规则展开到未来 400 天。
-          </p>
-        ) : (
-          <div className="upcoming-reminder-list">
-            {upcoming.map((item) => (
-              <article key={item.id}>
-                <div className="upcoming-reminder-date">
-                  <strong>{new Date(item.dueAt).getDate()}</strong>
-                  <small>
-                    {new Date(item.dueAt).toLocaleDateString('zh-CN', { month: 'short' })}
-                  </small>
-                </div>
-                <div className="upcoming-reminder-main">
-                  <Link
-                    to="/reminders/$reminderId"
-                    params={{ reminderId: item.reminderId }}
-                  >
-                    {item.reminder.title}
-                  </Link>
-                  <p>
-                    {item.reminder.asset?.name ?? '全局提醒'} ·{' '}
-                    {formatDue(item.dueAt, item.reminder.timeZone)}
-                  </p>
-                </div>
-                {item.reminder.taskMode === 'actionable' && (
-                  <div className="reminder-inline-actions">
-                    <button
-                      type="button"
-                      title="确认完成"
-                      aria-label="确认完成"
-                      onClick={() =>
-                        occurrenceAction.mutate({
-                          occurrenceId: item.id,
-                          action: 'acknowledge',
-                        })
-                      }
-                    >
-                      <Check size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      title="稍后提醒一小时"
-                      aria-label="稍后提醒一小时"
-                      onClick={() =>
-                        snoozeAction.mutate({
-                          occurrenceId: item.id,
-                          durationMinutes: 60,
-                        })
-                      }
-                    >
-                      <Clock3 size={15} />
-                    </button>
-                    <button
-                      type="button"
-                      title="忽略"
-                      aria-label="忽略"
-                      onClick={() =>
-                        occurrenceAction.mutate({
-                          occurrenceId: item.id,
-                          action: 'dismiss',
-                        })
-                      }
-                    >
-                      <X size={15} />
-                    </button>
+          {upcoming.length === 0 ? (
+            <div className="reminder-empty-state">
+              <Clock3 size={22} aria-hidden="true" />
+              <div>
+                <strong>还没有排到期的提醒</strong>
+                <p>Worker 会持续把周期规则展开到未来 400 天。</p>
+              </div>
+            </div>
+          ) : (
+            <div className="upcoming-reminder-list">
+              {upcoming.map((item) => (
+                <article key={item.id}>
+                  <div className="upcoming-reminder-date">
+                    <strong>{new Date(item.dueAt).getDate()}</strong>
+                    <small>
+                      {new Date(item.dueAt).toLocaleDateString('zh-CN', {
+                        month: 'short',
+                      })}
+                    </small>
                   </div>
-                )}
-              </article>
+                  <div className="upcoming-reminder-main">
+                    <Link
+                      to="/reminders/$reminderId"
+                      params={{ reminderId: item.reminderId }}
+                    >
+                      {item.reminder.title}
+                    </Link>
+                    <p>
+                      {item.reminder.asset?.name ?? '全局提醒'} ·{' '}
+                      {formatDue(item.dueAt, item.reminder.timeZone)}
+                    </p>
+                  </div>
+                  {item.reminder.taskMode === 'actionable' && (
+                    <div className="reminder-inline-actions">
+                      <button
+                        type="button"
+                        title="确认完成"
+                        aria-label="确认完成"
+                        onClick={() =>
+                          occurrenceAction.mutate({
+                            occurrenceId: item.id,
+                            action: 'acknowledge',
+                          })
+                        }
+                      >
+                        <Check size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        title="稍后提醒一小时"
+                        aria-label="稍后提醒一小时"
+                        onClick={() =>
+                          snoozeAction.mutate({
+                            occurrenceId: item.id,
+                            durationMinutes: 60,
+                          })
+                        }
+                      >
+                        <Clock3 size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        title="忽略"
+                        aria-label="忽略"
+                        onClick={() =>
+                          occurrenceAction.mutate({
+                            occurrenceId: item.id,
+                            action: 'dismiss',
+                          })
+                        }
+                      >
+                        <X size={15} />
+                      </button>
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="content-card reminder-list-card">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Reminder rules</p>
+              <h2>全部提醒</h2>
+            </div>
+            <span className="micro-copy">
+              普通通知发送后自动结束；待确认任务保留处理状态。
+            </span>
+          </div>
+          {remindersQuery.isPending && <p className="page-loading">正在读取提醒…</p>}
+          {remindersQuery.isError && (
+            <div className="form-error">{remindersQuery.error.message}</div>
+          )}
+          {!remindersQuery.isPending && reminders.length === 0 && (
+            <div className="reminder-empty-state compact">
+              <BellRing size={20} aria-hidden="true" />
+              <div>
+                <strong>还没有提醒规则</strong>
+                <p>把保修、维护或归还日期交给提醒中心。</p>
+              </div>
+            </div>
+          )}
+          <div className="reminder-rule-list">
+            {reminders.map((reminder) => (
+              <Link
+                className="reminder-rule-row"
+                key={reminder.id}
+                to="/reminders/$reminderId"
+                params={{ reminderId: reminder.id }}
+              >
+                <span className={`reminder-rule-dot ${reminder.status}`}>
+                  <BellRing size={15} />
+                </span>
+                <span className="reminder-rule-main">
+                  <strong>{reminder.title}</strong>
+                  <small>
+                    {reminderKindLabel(reminder.kind)} · {reminder.asset?.name ?? '全局'}{' '}
+                    ·{' '}
+                    {reminder.recurrenceKind === 'recurring'
+                      ? `每${reminder.recurrenceInterval}${reminder.frequency === 'month' ? '个月' : reminder.frequency === 'week' ? '周' : reminder.frequency === 'year' ? '年' : '天'}`
+                      : '一次性'}
+                  </small>
+                </span>
+                <span className="reminder-rule-next">
+                  {reminder.nextOccurrenceAt
+                    ? formatDue(reminder.nextOccurrenceAt, reminder.timeZone)
+                    : '已展开'}
+                </span>
+              </Link>
             ))}
           </div>
-        )}
-      </section>
-
-      <section className="content-card reminder-list-card">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Reminder rules</p>
-            <h2>全部提醒</h2>
-          </div>
-          <span className="micro-copy">
-            普通通知发送后自动结束；待确认任务保留处理状态。
-          </span>
-        </div>
-        {remindersQuery.isPending && <p className="page-loading">正在读取提醒…</p>}
-        {remindersQuery.isError && (
-          <div className="form-error">{remindersQuery.error.message}</div>
-        )}
-        {!remindersQuery.isPending && reminders.length === 0 && (
-          <p className="muted-copy">还没有提醒规则。</p>
-        )}
-        <div className="reminder-rule-list">
-          {reminders.map((reminder) => (
-            <Link
-              className="reminder-rule-row"
-              key={reminder.id}
-              to="/reminders/$reminderId"
-              params={{ reminderId: reminder.id }}
-            >
-              <span className={`reminder-rule-dot ${reminder.status}`}>
-                <BellRing size={15} />
-              </span>
-              <span className="reminder-rule-main">
-                <strong>{reminder.title}</strong>
-                <small>
-                  {reminderKindLabel(reminder.kind)} · {reminder.asset?.name ?? '全局'} ·{' '}
-                  {reminder.recurrenceKind === 'recurring'
-                    ? `每${reminder.recurrenceInterval}${reminder.frequency === 'month' ? '个月' : reminder.frequency === 'week' ? '周' : reminder.frequency === 'year' ? '年' : '天'}`
-                    : '一次性'}
-                </small>
-              </span>
-              <span className="reminder-rule-next">
-                {reminder.nextOccurrenceAt
-                  ? formatDue(reminder.nextOccurrenceAt, reminder.timeZone)
-                  : '已展开'}
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
+        </section>
+      </div>
 
       <section className="content-card channel-settings-card">
         <div className="section-heading">
@@ -347,6 +362,15 @@ export function ReminderListPage() {
               </button>
             </div>
           ))}
+          {(channelsQuery.data ?? []).length === 0 && (
+            <div className="channel-empty-state">
+              <Send size={20} aria-hidden="true" />
+              <div>
+                <strong>还没有通知渠道</strong>
+                <p>添加一个渠道后，可先发送测试消息确认配置。</p>
+              </div>
+            </div>
+          )}
         </div>
         {channelFormOpen && (
           <form

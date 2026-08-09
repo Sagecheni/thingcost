@@ -35,5 +35,6 @@ describe('currency formatting', () => {
     expect(formatMinorCurrency(null)).toBe('成本未知');
     expect(formatDailyMinorCurrency('1234')).toContain('12.34');
     expect(formatDailyMinorCurrency('-1234')).toContain('12.34');
+    expect(formatDailyMinorCurrency('1200', 'JPY')).toContain('1,200');
   });
 });

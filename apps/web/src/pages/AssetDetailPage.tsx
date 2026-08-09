@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from '@tanstack/react-router';
 import {
+  ArrowDownLeft,
   ArrowLeft,
+  ArrowUpRight,
   BellRing,
   CalendarDays,
   Clock3,
   Edit3,
+  History,
   Plus,
   ReceiptText,
   RotateCcw,
@@ -18,7 +21,6 @@ import { lazy, Suspense, type FormEvent, useMemo, useState } from 'react';
 import type { AssetDetail, CreateFinancialEventInput } from '@thingcost/contracts';
 
 import { AssetAttachmentsPanel } from '../components/AssetAttachmentsPanel.js';
-import { AssetValuationPanel } from '../components/AssetValuationPanel.js';
 import {
   AssetActivityForms,
   AssetActivityHistory,
@@ -344,6 +346,9 @@ function AssetDetailContent({ asset }: { asset: AssetDetail }) {
     [asset, costPeriodDays],
   );
   const costKnown = asset.costKnowledge !== 'unknown';
+  const latestLifecycleEventId = [...asset.lifecycleEvents]
+    .reverse()
+    .find((event) => !event.voidedAt)?.id;
 
   return (
     <>
@@ -604,7 +609,6 @@ function AssetDetailContent({ asset }: { asset: AssetDetail }) {
       </Link>
 
       <AssetAttachmentsPanel asset={asset} onUpdated={refresh} />
-      <AssetValuationPanel asset={asset} />
 
       <section className="detail-metrics">
         <article className="detail-metric-primary">
@@ -675,88 +679,184 @@ function AssetDetailContent({ asset }: { asset: AssetDetail }) {
 
       <div className="detail-columns">
         <section className="section-block detail-main-column">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Lifecycle</p>
-              <h2>状态时间线</h2>
-            </div>
-          </div>
           {(correctLifecycleEvent.error || correctFinancialEvent.error) && (
             <p className="form-error">
               {(correctLifecycleEvent.error ?? correctFinancialEvent.error)?.message}
             </p>
           )}
-          <div className="timeline-list">
-            {[...asset.lifecycleEvents].reverse().map((event) => (
-              <article
-                className={event.voidedAt ? 'audit-event-voided' : undefined}
-                key={event.id}
-              >
-                <span className="timeline-node" />
-                <div>
-                  <strong>{event.status.name}</strong>
-                  <time>{event.effectiveDate}</time>
-                  {event.note && <p>{event.note}</p>}
-                  {event.voidedAt && (
-                    <p className="audit-note">已作废：{event.voidReason}</p>
-                  )}
-                </div>
-                {!event.voidedAt && (
-                  <div className="event-audit-actions">
-                    <button type="button" onClick={() => replaceLifecycleDate(event)}>
-                      更正日期
-                    </button>
-                    <button type="button" onClick={() => voidLifecycleEvent(event.id)}>
-                      作废
-                    </button>
-                  </div>
-                )}
-              </article>
-            ))}
-          </div>
 
-          <div className="section-heading nested-heading">
-            <div>
-              <p className="eyebrow">Cashflow</p>
-              <h2>资金时间线</h2>
-            </div>
-          </div>
-          <div className="financial-list">
-            {asset.financialEvents.length === 0 && (
-              <p className="muted-copy">暂无资金事件。</p>
-            )}
-            {asset.financialEvents.map((event) => (
-              <article
-                className={event.voidedAt ? 'audit-event-voided' : undefined}
-                key={event.id}
-              >
-                <span className={event.direction === 'inflow' ? 'cash-in' : 'cash-out'}>
-                  {event.direction === 'inflow' ? '入' : '出'}
-                </span>
-                <div>
-                  <strong>{financialTypeLabel(event.type)}</strong>
-                  <small>{event.occurredOn}</small>
-                  {event.note && <p>{event.note}</p>}
-                  {event.voidedAt && (
-                    <p className="audit-note">已作废：{event.voidReason}</p>
-                  )}
-                  {!event.voidedAt && (
-                    <div className="event-audit-actions">
-                      <button type="button" onClick={() => replaceFinancialAmount(event)}>
-                        更正金额
-                      </button>
-                      <button type="button" onClick={() => voidFinancialEvent(event.id)}>
-                        作废
-                      </button>
-                    </div>
-                  )}
+          <div className="timeline-panels">
+            <section className="timeline-panel timeline-panel-lifecycle">
+              <header className="timeline-panel-header">
+                <div className="timeline-panel-title">
+                  <span className="timeline-panel-icon timeline-panel-icon-status">
+                    <History size={19} aria-hidden="true" />
+                  </span>
+                  <h2>状态时间线</h2>
                 </div>
-                <b>
-                  {event.direction === 'inflow' ? '−' : '+'}
-                  {formatMinorCurrency(event.baseAmountMinor)}
-                </b>
-              </article>
-            ))}
+                <div className="timeline-panel-meta">
+                  <span className="timeline-current-badge">
+                    当前 · {asset.currentStatus.name}
+                  </span>
+                  <span className="timeline-count">
+                    {asset.lifecycleEvents.length} 条
+                  </span>
+                </div>
+              </header>
+              <div className="timeline-list">
+                {asset.lifecycleEvents.length === 0 ? (
+                  <div className="timeline-empty">暂无状态记录</div>
+                ) : (
+                  [...asset.lifecycleEvents].reverse().map((event) => (
+                    <article
+                      className={[
+                        'timeline-event',
+                        event.id === latestLifecycleEventId
+                          ? 'timeline-event-current'
+                          : '',
+                        event.voidedAt ? 'audit-event-voided' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      key={event.id}
+                    >
+                      <span className="timeline-node" />
+                      <div className="timeline-event-body">
+                        <div className="timeline-event-topline">
+                          <strong>{event.status.name}</strong>
+                          <time>{event.effectiveDate}</time>
+                        </div>
+                        {event.id === latestLifecycleEventId && (
+                          <span className="timeline-event-badge">当前状态</span>
+                        )}
+                        {event.note && (
+                          <p className="timeline-event-note">{event.note}</p>
+                        )}
+                        {event.voidedAt && (
+                          <p className="audit-note">已作废：{event.voidReason}</p>
+                        )}
+                        {!event.voidedAt && (
+                          <div className="event-audit-actions">
+                            <button
+                              type="button"
+                              onClick={() => replaceLifecycleDate(event)}
+                            >
+                              更正日期
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => voidLifecycleEvent(event.id)}
+                            >
+                              作废
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+            </section>
+
+            <section className="timeline-panel timeline-panel-financial">
+              <header className="timeline-panel-header">
+                <div className="timeline-panel-title">
+                  <span className="timeline-panel-icon timeline-panel-icon-financial">
+                    <WalletCards size={19} aria-hidden="true" />
+                  </span>
+                  <h2>资金时间线</h2>
+                </div>
+                <span className="timeline-count">{asset.financialEvents.length} 条</span>
+              </header>
+              <div className="financial-list">
+                {asset.financialEvents.length === 0 ? (
+                  <div className="timeline-empty">暂无资金事件</div>
+                ) : (
+                  asset.financialEvents.map((event) => (
+                    <article
+                      className={`financial-event ${event.voidedAt ? 'audit-event-voided' : ''}`}
+                      key={event.id}
+                    >
+                      <span
+                        className={`cash-flow-badge ${
+                          event.direction === 'inflow' ? 'cash-in' : 'cash-out'
+                        }`}
+                        aria-label={
+                          event.direction === 'inflow' ? '资金流入' : '资金流出'
+                        }
+                      >
+                        {event.direction === 'inflow' ? (
+                          <ArrowDownLeft size={17} aria-hidden="true" />
+                        ) : (
+                          <ArrowUpRight size={17} aria-hidden="true" />
+                        )}
+                      </span>
+                      <div className="financial-event-body">
+                        <div className="financial-event-topline">
+                          <strong>{financialTypeLabel(event.type)}</strong>
+                          <time>{event.occurredOn}</time>
+                        </div>
+                        <div className="financial-event-meta">
+                          <span
+                            className={`financial-cost-tag ${
+                              event.includeInNetCost
+                                ? 'financial-cost-tag-included'
+                                : 'financial-cost-tag-excluded'
+                            }`}
+                          >
+                            {event.includeInNetCost ? '计入净成本' : '不计入净成本'}
+                          </span>
+                          {event.currency !== event.baseCurrency && (
+                            <span>
+                              {event.currency} → {event.baseCurrency}
+                            </span>
+                          )}
+                        </div>
+                        {event.note && (
+                          <p className="financial-event-note">{event.note}</p>
+                        )}
+                        {event.voidedAt && (
+                          <p className="audit-note">已作废：{event.voidReason}</p>
+                        )}
+                        {!event.voidedAt && (
+                          <div className="event-audit-actions">
+                            <button
+                              type="button"
+                              onClick={() => replaceFinancialAmount(event)}
+                            >
+                              更正金额
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => voidFinancialEvent(event.id)}
+                            >
+                              作废
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <div
+                        className={`financial-event-amount ${
+                          event.direction === 'inflow'
+                            ? 'financial-amount-in'
+                            : 'financial-amount-out'
+                        }`}
+                      >
+                        <b>
+                          {event.direction === 'inflow' ? '−' : '+'}
+                          {formatMinorCurrency(event.baseAmountMinor, event.baseCurrency)}
+                        </b>
+                        {event.currency !== event.baseCurrency && (
+                          <small>
+                            {formatMinorCurrency(event.amountMinor, event.currency)}
+                          </small>
+                        )}
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+            </section>
           </div>
 
           <div className="section-heading nested-heading">

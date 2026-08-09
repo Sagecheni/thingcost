@@ -60,9 +60,11 @@ export async function getDashboard(db: Database, periodDays: number): Promise<Da
           categoryId: categories.id,
           categoryName: categories.name,
           categoryColor: categories.color,
+          currentStatusName: assetStatuses.name,
         })
         .from(assets)
         .innerJoin(categories, eq(assets.categoryId, categories.id))
+        .innerJoin(assetStatuses, eq(assets.currentStatusId, assetStatuses.id))
         .where(isNull(assets.deletedAt)),
       db
         .select({
@@ -187,7 +189,12 @@ export async function getDashboard(db: Database, periodDays: number): Promise<Da
   );
   const categoryTotals = new Map<
     string,
-    { itemCount: number; netCostMinor: bigint; dailyCostMinor: Decimal }
+    {
+      itemCount: number;
+      netCostMinor: bigint;
+      dailyCostMinor: Decimal;
+      holdingDailyCostMinor: Decimal;
+    }
   >();
 
   for (const asset of current.assets) {
@@ -199,12 +206,19 @@ export async function getDashboard(db: Database, periodDays: number): Promise<Da
       itemCount: 0,
       netCostMinor: 0n,
       dailyCostMinor: new Decimal(0),
+      holdingDailyCostMinor: new Decimal(0),
     };
     total.itemCount += 1;
     total.netCostMinor += asset.netCostMinor ?? 0n;
 
     if (asset.isInServicePortfolio && asset.netDailyCostMinor !== null) {
       total.dailyCostMinor = total.dailyCostMinor.plus(asset.netDailyCostMinor);
+    }
+
+    if (asset.holdingDailyCostMinor !== null) {
+      total.holdingDailyCostMinor = total.holdingDailyCostMinor.plus(
+        asset.holdingDailyCostMinor,
+      );
     }
 
     categoryTotals.set(asset.categoryId, total);
@@ -229,17 +243,20 @@ export async function getDashboard(db: Database, periodDays: number): Promise<Da
     current.assets.some((asset) => asset.id === assetId && asset.isHeld),
   ).length;
 
-  const periodSpendingMinor = financialRows.reduce((total, event) => {
-    if (
-      event.direction !== 'outflow' ||
-      event.occurredOn < periodStart ||
-      event.occurredOn > today
-    ) {
-      return total;
+  let periodSpendingMinor = 0n;
+  let periodInflowMinor = 0n;
+  for (const event of financialRows) {
+    if (event.occurredOn < periodStart || event.occurredOn > today) {
+      continue;
     }
 
-    return total + event.baseAmountMinor;
-  }, 0n);
+    if (event.direction === 'outflow') {
+      periodSpendingMinor += event.baseAmountMinor;
+    } else {
+      periodInflowMinor += event.baseAmountMinor;
+    }
+  }
+  const periodNetSpendingMinor = periodSpendingMinor - periodInflowMinor;
 
   const recentActivity = await loadRecentActivity(db);
   const currentStatusCounts = current.assets.reduce<Record<string, number>>(
@@ -249,11 +266,32 @@ export async function getDashboard(db: Database, periodDays: number): Promise<Da
     },
     {},
   );
+  const assetMetadata = new Map(assetRows.map((asset) => [asset.id, asset]));
+  const heldAssetInsights = current.assets
+    .filter((asset) => asset.isHeld)
+    .map((asset) => {
+      const metadata = assetMetadata.get(asset.id);
+      return {
+        assetId: asset.id,
+        name: metadata?.name ?? '未命名物品',
+        categoryName: metadata?.categoryName ?? '未知分类',
+        categoryColor: metadata?.categoryColor ?? null,
+        statusCode: asset.statusCode,
+        statusName: metadata?.currentStatusName ?? asset.statusCode,
+        netCostMinor: asset.netCostMinor?.toString() ?? null,
+        holdingDailyCostMinor: asset.holdingDailyCostMinor,
+        serviceDailyCostMinor: asset.netDailyCostMinor,
+        holdingDays: asset.holdingDays,
+        serviceDays: asset.serviceDays,
+      };
+    });
 
   return {
     asOfDate: today,
+    baseCurrency: settings.baseCurrency,
     periodDays,
     currentDailyCostMinor: current.currentDailyCostMinor,
+    currentHoldingDailyCostMinor: current.currentHoldingDailyCostMinor,
     currentNetInvestmentMinor: current.currentNetInvestmentMinor.toString(),
     adoptedValuationMinor: valuedItemCount > 0 ? adoptedValuationMinor.toString() : null,
     valuedNetInvestmentMinor:
@@ -268,6 +306,8 @@ export async function getDashboard(db: Database, periodDays: number): Promise<Da
         ? 0
         : Math.round((valuedItemCount / current.heldItemCount) * 100),
     periodSpendingMinor: periodSpendingMinor.toString(),
+    periodInflowMinor: periodInflowMinor.toString(),
+    periodNetSpendingMinor: periodNetSpendingMinor.toString(),
     heldItemCount: current.heldItemCount,
     serviceItemCount: current.serviceItemCount,
     totalItemCount: current.assets.length,
@@ -291,14 +331,33 @@ export async function getDashboard(db: Database, periodDays: number): Promise<Da
         itemCount: totals.itemCount,
         netCostMinor: totals.netCostMinor.toString(),
         dailyCostMinor: totals.dailyCostMinor.toDecimalPlaces(8).toString(),
+        holdingDailyCostMinor: totals.holdingDailyCostMinor.toDecimalPlaces(8).toString(),
       }))
       .sort((left, right) => Number(right.netCostMinor) - Number(left.netCostMinor)),
     trend: trend.map((point) => ({
       date: point.asOfDate,
       dailyCostMinor: point.currentDailyCostMinor,
+      holdingDailyCostMinor: point.currentHoldingDailyCostMinor,
       netInvestmentMinor: point.currentNetInvestmentMinor.toString(),
       activeItemCount: point.serviceItemCount,
+      heldItemCount: point.heldItemCount,
     })),
+    assetRankings: {
+      highestHoldingDailyCost: heldAssetInsights
+        .filter((asset) => asset.holdingDailyCostMinor !== null)
+        .sort((left, right) =>
+          new Decimal(right.holdingDailyCostMinor ?? 0).comparedTo(
+            left.holdingDailyCostMinor ?? 0,
+          ),
+        )
+        .slice(0, 5),
+      longestHeld: [...heldAssetInsights]
+        .sort(
+          (left, right) =>
+            right.holdingDays - left.holdingDays || left.name.localeCompare(right.name),
+        )
+        .slice(0, 5),
+    },
     recentActivity,
     upcomingReminders: upcomingReminderRows.map((reminder) => ({
       id: reminder.id,

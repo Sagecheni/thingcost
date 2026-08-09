@@ -65,6 +65,7 @@ describe('portfolio calculations', () => {
     const snapshot = calculatePortfolioSnapshot(assets, '2026-01-03');
 
     expect(snapshot.currentNetInvestmentMinor).toBe(90_00n);
+    expect(snapshot.currentHoldingDailyCostMinor).toBe('3000');
     expect(snapshot.heldItemCount).toBe(2);
     expect(snapshot.serviceItemCount).toBe(2);
     expect(snapshot.unknownCostCount).toBe(1);
@@ -79,8 +80,13 @@ describe('portfolio calculations', () => {
     const snapshot = calculatePortfolioSnapshot(assets, '2026-01-06');
     const camera = snapshot.assets.find((asset) => asset.id === 'camera');
 
-    expect(camera).toMatchObject({ isHeld: true, isInServicePortfolio: false });
+    expect(camera).toMatchObject({
+      isHeld: true,
+      isInServicePortfolio: false,
+      holdingDailyCostMinor: '1500',
+    });
     expect(snapshot.currentDailyCostMinor).toBe('0');
+    expect(snapshot.currentHoldingDailyCostMinor).toBe('1500');
     expect(snapshot.currentNetInvestmentMinor).toBe(90_00n);
   });
 

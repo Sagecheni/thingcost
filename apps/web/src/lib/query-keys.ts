@@ -4,6 +4,7 @@ export const queryKeys = {
   categories: ['categories'] as const,
   statuses: ['asset-statuses'] as const,
   tags: ['tags'] as const,
+  applicationSettings: ['application-settings'] as const,
   dashboard: (periodDays: number) => ['dashboard', periodDays] as const,
   assetLists: ['assets'] as const,
   assets: (filters: Record<string, unknown> = {}) => ['assets', filters] as const,

@@ -1,23 +1,25 @@
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+import { PixelIcon, type PixelIconName } from './PixelIcon.js';
+
 import { useI18n } from '../lib/i18n.js';
 
 const themes = ['system', 'light', 'dark'] as const;
 type Theme = (typeof themes)[number];
 
 const themeMetadata = {
-  system: { icon: Monitor, key: 'theme.system' },
-  light: { icon: Sun, key: 'theme.light' },
-  dark: { icon: Moon, key: 'theme.dark' },
-} as const;
+  system: { icon: 'screen', key: 'theme.system' },
+  light: { icon: 'sun', key: 'theme.light' },
+  dark: { icon: 'moon', key: 'theme.dark' },
+} as const satisfies Record<Theme, { icon: PixelIconName; key: string }>;
 
 function storedTheme(): Theme {
   const value = window.localStorage.getItem('chronicle-theme');
   return themes.includes(value as Theme) ? (value as Theme) : 'system';
 }
 
-export function ThemeToggle() {
+export function ThemeToggle({ report = false }: { report?: boolean }) {
   const [theme, setTheme] = useState<Theme>(storedTheme);
   const { t } = useI18n();
 
@@ -27,8 +29,8 @@ export function ThemeToggle() {
   }, [theme]);
 
   const metadata = themeMetadata[theme];
-  const Icon = metadata.icon;
   const label = t(metadata.key);
+  const ReportIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
 
   return (
     <button
@@ -41,7 +43,11 @@ export function ThemeToggle() {
         setTheme(themes[(index + 1) % themes.length] ?? 'system');
       }}
     >
-      <Icon size={17} aria-hidden="true" />
+      {report ? (
+        <ReportIcon aria-hidden="true" size={17} strokeWidth={1.8} />
+      ) : (
+        <PixelIcon name={metadata.icon} size={18} />
+      )}
     </button>
   );
 }

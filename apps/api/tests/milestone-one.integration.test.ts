@@ -587,10 +587,26 @@ describe.skipIf(!database)('milestone-one API', () => {
     expect(dashboard).toMatchObject({
       heldItemCount: 1,
       serviceItemCount: 1,
+      baseCurrency: 'CNY',
       unknownCostCount: 0,
       currentNetInvestmentMinor: '189501',
+      currentHoldingDailyCostMinor: '189501',
       periodSpendingMinor: '189501',
+      periodInflowMinor: '0',
+      periodNetSpendingMinor: '189501',
     });
+    expect(dashboard.categories[0]).toMatchObject({
+      itemCount: 1,
+      netCostMinor: '189501',
+      holdingDailyCostMinor: '189501',
+    });
+    expect(dashboard.assetRankings.highestHoldingDailyCost[0]).toMatchObject({
+      assetId: created.id,
+      name: '通勤相机',
+      holdingDailyCostMinor: '189501',
+      holdingDays: 1,
+    });
+    expect(dashboard.assetRankings.longestHeld[0]?.assetId).toBe(created.id);
     expect(dashboard.trend).toHaveLength(30);
     expect(dashboard.recentActivity.map((activity) => activity.type)).toEqual(
       expect.arrayContaining([

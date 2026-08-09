@@ -30,6 +30,7 @@ export interface PortfolioAssetSnapshot {
   categoryId: string;
   netCostMinor: bigint | null;
   netDailyCostMinor: string | null;
+  holdingDailyCostMinor: string | null;
   holdingDays: number;
   serviceDays: number;
   isHeld: boolean;
@@ -41,6 +42,7 @@ export interface PortfolioSnapshot {
   asOfDate: string;
   assets: PortfolioAssetSnapshot[];
   currentDailyCostMinor: string;
+  currentHoldingDailyCostMinor: string;
   currentNetInvestmentMinor: bigint;
   heldItemCount: number;
   serviceItemCount: number;
@@ -109,6 +111,12 @@ export function calculatePortfolioSnapshot(
         categoryId: asset.categoryId,
         netCostMinor: asset.costKnown ? netCostMinor : null,
         netDailyCostMinor: asset.costKnown ? metrics.netDailyCostMinor : null,
+        holdingDailyCostMinor: asset.costKnown
+          ? new Decimal(netCostMinor.toString())
+              .div(metrics.holdingDays)
+              .toDecimalPlaces(8)
+              .toString()
+          : null,
         holdingDays: metrics.holdingDays,
         serviceDays: metrics.serviceDays,
         isHeld: metrics.disposedOn === null,
@@ -126,6 +134,14 @@ export function calculatePortfolioSnapshot(
     return total.plus(asset.netDailyCostMinor);
   }, new Decimal(0));
 
+  const currentHoldingDailyCostMinor = snapshots.reduce((total, asset) => {
+    if (!asset.isHeld || asset.holdingDailyCostMinor === null) {
+      return total;
+    }
+
+    return total.plus(asset.holdingDailyCostMinor);
+  }, new Decimal(0));
+
   const currentNetInvestmentMinor = snapshots.reduce((total, asset) => {
     if (!asset.isHeld || asset.netCostMinor === null) {
       return total;
@@ -138,6 +154,9 @@ export function calculatePortfolioSnapshot(
     asOfDate,
     assets: snapshots,
     currentDailyCostMinor: currentDailyCostMinor.toDecimalPlaces(8).toString(),
+    currentHoldingDailyCostMinor: currentHoldingDailyCostMinor
+      .toDecimalPlaces(8)
+      .toString(),
     currentNetInvestmentMinor,
     heldItemCount: snapshots.filter((asset) => asset.isHeld).length,
     serviceItemCount: snapshots.filter((asset) => asset.isInServicePortfolio).length,

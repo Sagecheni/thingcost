@@ -21,8 +21,7 @@ App/API (Fastify)
      PostgreSQL ◀──── Worker
                       ├── scheduled reminders
                       ├── notification delivery
-                      ├── exchange-rate jobs
-                      └── future AI valuation jobs
+                      └── exchange-rate jobs
 ```
 
 生产 Compose 服务：
@@ -135,7 +134,7 @@ docs/
 - `lifecycle_events` 保存状态区间事实。
 - `financial_events` 保存不可无痕覆盖的资金事实与更正关系。
 - `condition_events` 保存成色变化。
-- `valuation_reports` 与 `valuation_snapshots` 分离“建议”和“已采用值”。
+- 旧版本 `valuation_reports`、`valuation_snapshots` 与 `valuation_schedules` 仅为迁移兼容保留，不属于当前产品流程。
 
 普通标题和备注允许直接编辑。影响统计的更正必须留下原记录与更正关系。
 
@@ -190,7 +189,7 @@ docs/
 
 ## 8. Worker 与任务可靠性
 
-- 每类任务有稳定幂等键，防止重复通知或重复估值。
+- 每类任务有稳定幂等键，防止重复通知。
 - 使用数据库事务保证业务变更与任务入队的一致性。
 - 指数退避、有上限重试、死信/失败状态和人工重试入口。
 - 一个通知 Provider 失败不能阻止其他 Provider。
@@ -202,9 +201,6 @@ docs/
 外部能力全部通过 Provider 接口：
 
 - `ExchangeRateProvider`：默认 Frankfurter v2。
-- `SearchProvider`：默认 Tavily；结果按查询哈希缓存（TTL 可配置）。
-- `AIProvider`：Chat Completions 与 Responses 两类适配器；月度预算与 Worker 并发可配置。
-- 估值：`valuation_reports`（建议）与 `valuation_snapshots`（确认采用）分离；`valuation_schedules` 驱动按物品周期任务；缺少证据/置信度不可采用。
 - `NotificationProvider`：Telegram、Webhook、企业微信群机器人、Server酱、PushPlus；每个渠道均支持管理员测试发送。
 - 订阅与数字许可使用独立表 `subscriptions` / `subscription_price_changes` / `subscription_charges`，不伪装成实物 `assets`；只存账号标识与密码管理器外链，永不存密码或 License Key。
 - 订阅通过 `subscription_tags`、`subscription_attachments` 与通用提醒 `reminders.subscription_id` 共享标签、私有资料和提醒能力。
@@ -223,7 +219,7 @@ docs/
 - Web 设置中的密钥由主密钥使用经过认证的加密算法加密后入库；支持 Telegram、Webhook、企业微信、Server酱和 PushPlus 的数据库渠道。
 - 主密钥只来自环境/secret，不进入数据库或便携导出。
 - 备份与导出默认排除所有 Provider 密钥和个人 Token。
-- Portable Export v1 同步保存估值、订阅价格历史、扣款、标签和私有订阅附件，并在 replace import 中恢复原始 ID 与存储键。
+- Portable Export v1 对旧版本估值记录保持兼容，并同步保存订阅价格历史、扣款、标签和私有订阅附件；replace import 恢复原始 ID 与存储键。
 
 附件：
 

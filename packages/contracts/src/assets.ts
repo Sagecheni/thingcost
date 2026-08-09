@@ -64,6 +64,12 @@ export const createTagSchema = z.object({
   color: z.string().trim().max(24).optional(),
 });
 
+export const updateTagSchema = createTagSchema
+  .partial()
+  .refine((input) => Object.keys(input).length > 0, '至少需要修改一个字段');
+
+export type UpdateTagInput = z.infer<typeof updateTagSchema>;
+
 export const assetStatusSchema = z.object({
   id: uuidSchema,
   code: z.string(),
@@ -396,6 +402,7 @@ export const permanentDeleteAssetInputSchema = z.object({
 });
 
 export type Category = z.infer<typeof categorySchema>;
+export type Tag = z.infer<typeof tagSchema>;
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
 export type AssetStatus = z.infer<typeof assetStatusSchema>;

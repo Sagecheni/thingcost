@@ -1314,37 +1314,8 @@ td a small {
   font-size: 27px;
 }
 
-.asset-cost-chart-card,
-.asset-valuation-card {
+.asset-cost-chart-card {
   margin-bottom: 18px;
-}
-
-.asset-valuation-card .primary-action,
-.asset-valuation-card .secondary-action {
-  margin-top: 12px;
-}
-
-.valuation-schedule-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  margin: 14px 0 8px;
-}
-
-.valuation-schedule-row select {
-  min-width: 140px;
-}
-
-.valuation-analytics {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line-soft);
-}
-
-.valuation-analytics h3 {
-  margin: 0 0 8px;
-  font-size: 15px;
 }
 
 .asset-cost-chart-note {
@@ -1874,70 +1845,6 @@ td a small {
   margin-top: 14px;
 }
 
-.valuation-overview-card {
-  display: grid;
-  grid-template-columns: minmax(190px, 0.7fr) minmax(0, 2fr);
-  gap: 24px;
-  align-items: center;
-  margin-top: 14px;
-  padding: 20px 22px;
-  border: 1px solid color-mix(in srgb, var(--amber) 32%, var(--line));
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--amber-soft) 24%, var(--surface));
-}
-
-.valuation-overview-heading {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.valuation-overview-heading h2 {
-  margin: 4px 0 0;
-  font-size: 16px;
-}
-
-.valuation-overview-empty p,
-.valuation-overview-empty small {
-  margin: 0;
-}
-
-.valuation-overview-empty p {
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.valuation-overview-empty small {
-  display: block;
-  margin-top: 5px;
-  color: var(--muted);
-  font-size: 9px;
-}
-
-.valuation-overview-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.valuation-overview-metrics div {
-  display: grid;
-  gap: 5px;
-  min-width: 0;
-}
-
-.valuation-overview-metrics span,
-.valuation-overview-metrics small {
-  color: var(--muted);
-  font-size: 8px;
-}
-
-.valuation-overview-metrics strong {
-  overflow-wrap: anywhere;
-  font-family: var(--font-display);
-  font-size: 15px;
-}
-
 .dashboard-chart-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.9fr);
@@ -2443,11 +2350,6 @@ td a small {
     grid-template-columns: 1fr;
   }
 
-  .valuation-overview-card {
-    grid-template-columns: 1fr;
-  }
-
-  .valuation-overview-metrics,
   .dashboard-metrics,
   .insight-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2459,7 +2361,6 @@ td a small {
 }
 
 @media (max-width: 720px) {
-  .valuation-overview-metrics,
   .dashboard-metrics,
   .insight-grid,
   .filter-grid,

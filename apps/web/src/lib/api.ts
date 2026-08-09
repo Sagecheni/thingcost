@@ -17,13 +17,6 @@ import {
   personalAccessTokenSchema,
   personalApiSettingsSchema,
   createdPersonalAccessTokenSchema,
-  valuationPreviewSchema,
-  valuationReportListSchema,
-  valuationReportSchema,
-  valuationSnapshotListSchema,
-  valuationScheduleSchema,
-  valuationAnalyticsSchema,
-  confirmValuationResultSchema,
   subscriptionListSchema,
   subscriptionDetailSchema,
   subscriptionChargeSchema,
@@ -66,8 +59,6 @@ import {
   type CreateWishlistPriceSnapshotInput,
   type ConvertWishlistItemInput,
   type CreatePersonalAccessTokenInput,
-  type ConfirmValuationInput,
-  type UpdateValuationScheduleInput,
   type CreateSubscriptionInput,
   type CreateSubscriptionChargeInput,
   type CreateSubscriptionPriceChangeInput,
@@ -82,6 +73,8 @@ import {
   type UpdateAssetInput,
   type UpdateAssetStatusInput,
   type UpdateCategoryInput,
+  type UpdateApplicationSettingsInput,
+  type UpdateTagInput,
   type UpdateWishlistItemInput,
   type WishlistListQuery,
 } from '@thingcost/contracts';
@@ -203,6 +196,13 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(input),
     }),
+  applicationSettings: () =>
+    requestJson('/api/v1/settings/application', applicationSettingsSchema),
+  updateApplicationSettings: (input: UpdateApplicationSettingsInput) =>
+    requestJson('/api/v1/settings/application', applicationSettingsSchema, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
   deleteCategory: (id: string) =>
     requestEmpty(`/api/v1/categories/${id}`, { method: 'DELETE' }),
   statuses: () => requestJson('/api/v1/asset-statuses', assetStatusSchema.array()),
@@ -224,6 +224,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(input),
     }),
+  updateTag: (id: string, input: UpdateTagInput) =>
+    requestJson(`/api/v1/tags/${id}`, tagSchema, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
+  deleteTag: (id: string) => requestEmpty(`/api/v1/tags/${id}`, { method: 'DELETE' }),
   dashboard: (periodDays: number) =>
     requestJson(`/api/v1/dashboard?periodDays=${String(periodDays)}`, dashboardSchema),
   exchangeRateQuote: (base: string, quote: string, date: string) =>
@@ -270,47 +276,6 @@ export const api = {
     requestJson(`/api/v1/personal-access-tokens/${tokenId}`, personalAccessTokenSchema, {
       method: 'DELETE',
     }),
-  valuationPreview: (assetId: string) =>
-    requestJson(`/api/v1/assets/${assetId}/valuations/preview`, valuationPreviewSchema),
-  valuationReports: (assetId: string) =>
-    requestJson(
-      `/api/v1/assets/${assetId}/valuations/reports`,
-      valuationReportListSchema,
-    ),
-  valuationSnapshots: (assetId: string) =>
-    requestJson(
-      `/api/v1/assets/${assetId}/valuations/snapshots`,
-      valuationSnapshotListSchema,
-    ),
-  runValuation: (assetId: string) =>
-    requestJson(`/api/v1/assets/${assetId}/valuations/runs`, valuationReportSchema, {
-      method: 'POST',
-      body: JSON.stringify({ confirmOutboundSummary: true }),
-    }),
-  confirmValuation: (
-    assetId: string,
-    reportId: string,
-    input: ConfirmValuationInput = {},
-  ) =>
-    requestJson(
-      `/api/v1/assets/${assetId}/valuations/reports/${reportId}/confirm`,
-      confirmValuationResultSchema,
-      {
-        method: 'POST',
-        body: JSON.stringify(input),
-      },
-    ),
-  valuationSchedule: (assetId: string) =>
-    requestJson(`/api/v1/assets/${assetId}/valuations/schedule`, valuationScheduleSchema),
-  updateValuationSchedule: (assetId: string, input: UpdateValuationScheduleInput) =>
-    requestJson(
-      `/api/v1/assets/${assetId}/valuations/schedule`,
-      valuationScheduleSchema,
-      {
-        method: 'PUT',
-        body: JSON.stringify(input),
-      },
-    ),
   subscriptions: () => requestJson('/api/v1/subscriptions', subscriptionListSchema),
   subscription: (id: string) =>
     requestJson(`/api/v1/subscriptions/${id}`, subscriptionDetailSchema),
@@ -372,11 +337,6 @@ export const api = {
     );
     if (!response.ok) throw new Error('删除附件失败');
   },
-  valuationAnalytics: (assetId: string) =>
-    requestJson(
-      `/api/v1/assets/${assetId}/valuations/analytics`,
-      valuationAnalyticsSchema,
-    ),
   assets: (filters: Partial<AssetListQuery> = {}) => {
     const search = new URLSearchParams();
 

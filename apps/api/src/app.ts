@@ -35,6 +35,7 @@ import { registerImportRoutes } from './routes/imports.js';
 import { registerOrderRoutes } from './routes/orders.js';
 import { registerReminderRoutes } from './routes/reminders.js';
 import { registerSetupRoutes } from './routes/setup.js';
+import { registerSettingsRoutes } from './routes/settings.js';
 import type { AiProvider } from './services/ai-providers.js';
 import type { SearchProvider } from './services/search-providers.js';
 import { registerSubscriptionAttachmentRoutes } from './routes/subscription-attachments.js';
@@ -55,6 +56,7 @@ function openApiTagForPath(path: string): string | undefined {
   if (path.includes('personal-api') || path.includes('personal-access-tokens')) {
     return 'Personal API';
   }
+  if (path.includes('/settings')) return 'Settings';
   if (
     path.includes('/categories') ||
     path.includes('/tags') ||
@@ -142,6 +144,7 @@ export async function buildApp(
         { name: 'Meta', description: '应用元数据' },
         { name: 'Auth', description: '初始化、登录与会话' },
         { name: 'Personal API', description: '个人访问令牌与开关' },
+        { name: 'Settings', description: '应用时区与基础币种设置' },
         { name: 'Catalogs', description: '分类、状态与标签' },
         { name: 'Assets', description: '物品与资金/生命周期事件' },
         { name: 'Asset activity', description: '成色、借出与维修' },
@@ -154,7 +157,7 @@ export async function buildApp(
         { name: 'Wishlist', description: '种草清单与价格快照' },
         {
           name: 'Valuations',
-          description: 'AI 估值建议与确认采用快照（与现金账本分离）',
+          description: '旧版本估值兼容接口（已从 Web 产品流程移除）',
         },
         {
           name: 'Subscriptions',
@@ -276,6 +279,7 @@ export async function buildApp(
     registerSetupRoutes(app, { db: dependencies.db, config });
     registerAuthRoutes(app, { db: dependencies.db, config });
     registerApiTokenRoutes(app, { db: dependencies.db });
+    registerSettingsRoutes(app, { db: dependencies.db });
     registerCatalogRoutes(app, { db: dependencies.db });
     registerAssetRoutes(app, { db: dependencies.db, config });
     registerAssetActivityRoutes(app, { db: dependencies.db });

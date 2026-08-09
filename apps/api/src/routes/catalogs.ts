@@ -12,6 +12,7 @@ import {
   createCategorySchema,
   createTagSchema,
   tagSchema,
+  updateTagSchema,
   updateAssetStatusSchema,
   updateCategorySchema,
   uuidSchema,
@@ -19,7 +20,9 @@ import {
 import {
   assets,
   assetStatuses,
+  assetTags,
   categories,
+  subscriptionTags,
   tags,
   type Database,
 } from '@thingcost/database';
@@ -245,6 +248,85 @@ export function registerCatalogRoutes(
       }
 
       return reply.code(201).send(created);
+    },
+  );
+
+  typedApp.patch(
+    '/api/v1/tags/:id',
+    {
+      schema: {
+        params: idParamsSchema,
+        body: updateTagSchema,
+        response: { 200: tagSchema },
+      },
+    },
+    async (request, reply) => {
+      if (!(await requireAuth(options.db, request, reply, { sessionOnly: true }))) {
+        return reply;
+      }
+      const [tag] = await options.db
+        .select({ id: tags.id })
+        .from(tags)
+        .where(and(eq(tags.id, request.params.id), isNull(tags.deletedAt)))
+        .limit(1);
+      if (!tag) return sendApiError(reply, 404, 'TAG_NOT_FOUND', '没有找到该标签');
+
+      if (request.body.name) {
+        const [duplicate] = await options.db
+          .select({ id: tags.id })
+          .from(tags)
+          .where(
+            sql`${tags.deletedAt} is null and ${tags.id} <> ${tag.id} and lower(${tags.name}) = lower(${request.body.name})`,
+          )
+          .limit(1);
+        if (duplicate) {
+          return sendApiError(reply, 409, 'TAG_ALREADY_EXISTS', '该标签已经存在');
+        }
+      }
+
+      const [updated] = await options.db
+        .update(tags)
+        .set({ ...request.body, updatedAt: new Date() })
+        .where(eq(tags.id, tag.id))
+        .returning({ id: tags.id, name: tags.name, color: tags.color });
+      if (!updated) throw new Error('Unable to update tag.');
+      return updated;
+    },
+  );
+
+  typedApp.delete(
+    '/api/v1/tags/:id',
+    { schema: { params: idParamsSchema, response: { 204: z.null() } } },
+    async (request, reply) => {
+      if (!(await requireAuth(options.db, request, reply, { sessionOnly: true }))) {
+        return reply;
+      }
+      const [tag] = await options.db
+        .select({ id: tags.id })
+        .from(tags)
+        .where(and(eq(tags.id, request.params.id), isNull(tags.deletedAt)))
+        .limit(1);
+      if (!tag) return sendApiError(reply, 404, 'TAG_NOT_FOUND', '没有找到该标签');
+
+      const [usedByAsset] = await options.db
+        .select({ assetId: assetTags.assetId })
+        .from(assetTags)
+        .where(eq(assetTags.tagId, tag.id))
+        .limit(1);
+      const [usedBySubscription] = await options.db
+        .select({ subscriptionId: subscriptionTags.subscriptionId })
+        .from(subscriptionTags)
+        .where(eq(subscriptionTags.tagId, tag.id))
+        .limit(1);
+      if (usedByAsset || usedBySubscription) {
+        return sendApiError(reply, 409, 'TAG_IN_USE', '仍有记录使用该标签');
+      }
+
+      await options.db
+        .update(tags)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(eq(tags.id, tag.id));
+      return reply.code(204).send(null);
     },
   );
 

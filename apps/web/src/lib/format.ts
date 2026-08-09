@@ -35,17 +35,20 @@ export function formatMinorCurrency(
   }).format(amount);
 }
 
-export function formatDailyMinorCurrency(amountMinor: string | null): string {
+export function formatDailyMinorCurrency(
+  amountMinor: string | null,
+  currency = 'CNY',
+): string {
   if (amountMinor === null) {
     return '—';
   }
 
-  const amount = Number(amountMinor) / 100;
+  const amount = Number(amountMinor) / 10 ** currencyFractionDigits(currency);
   return `${new Intl.NumberFormat(localeForIntl(), {
     style: 'currency',
-    currency: 'CNY',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    currency,
+    minimumFractionDigits: Math.min(2, currencyFractionDigits(currency)),
+    maximumFractionDigits: Math.max(2, currencyFractionDigits(currency)),
   }).format(Math.abs(amount))}/天`;
 }
 

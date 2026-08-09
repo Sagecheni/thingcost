@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
-import { isoDateSchema, signedMinorUnitSchema, uuidSchema } from './common.js';
+import {
+  currencyCodeSchema,
+  isoDateSchema,
+  signedMinorUnitSchema,
+  uuidSchema,
+} from './common.js';
 
 export const dashboardCategorySchema = z.object({
   categoryId: uuidSchema,
@@ -9,13 +14,30 @@ export const dashboardCategorySchema = z.object({
   itemCount: z.number().int().nonnegative(),
   netCostMinor: signedMinorUnitSchema,
   dailyCostMinor: z.string(),
+  holdingDailyCostMinor: z.string(),
 });
 
 export const dashboardTrendPointSchema = z.object({
   date: isoDateSchema,
   dailyCostMinor: z.string(),
+  holdingDailyCostMinor: z.string(),
   netInvestmentMinor: signedMinorUnitSchema,
   activeItemCount: z.number().int().nonnegative(),
+  heldItemCount: z.number().int().nonnegative(),
+});
+
+export const dashboardAssetInsightSchema = z.object({
+  assetId: uuidSchema,
+  name: z.string(),
+  categoryName: z.string(),
+  categoryColor: z.string().nullable(),
+  statusCode: z.string(),
+  statusName: z.string(),
+  netCostMinor: signedMinorUnitSchema.nullable(),
+  holdingDailyCostMinor: z.string().nullable(),
+  serviceDailyCostMinor: z.string().nullable(),
+  holdingDays: z.number().int().positive(),
+  serviceDays: z.number().int().nonnegative(),
 });
 
 export const recentActivityTypeSchema = z.enum([
@@ -53,8 +75,10 @@ export const dashboardReminderSchema = z.object({
 
 export const dashboardSchema = z.object({
   asOfDate: isoDateSchema,
+  baseCurrency: currencyCodeSchema,
   periodDays: z.number().int().positive(),
   currentDailyCostMinor: z.string(),
+  currentHoldingDailyCostMinor: z.string(),
   currentNetInvestmentMinor: signedMinorUnitSchema,
   adoptedValuationMinor: signedMinorUnitSchema.nullable(),
   valuedNetInvestmentMinor: signedMinorUnitSchema.nullable(),
@@ -62,6 +86,8 @@ export const dashboardSchema = z.object({
   valuedItemCount: z.number().int().nonnegative(),
   valuationCoveragePercent: z.number().min(0).max(100),
   periodSpendingMinor: signedMinorUnitSchema,
+  periodInflowMinor: signedMinorUnitSchema,
+  periodNetSpendingMinor: signedMinorUnitSchema,
   heldItemCount: z.number().int().nonnegative(),
   serviceItemCount: z.number().int().nonnegative(),
   totalItemCount: z.number().int().nonnegative(),
@@ -73,10 +99,15 @@ export const dashboardSchema = z.object({
   retiredCount: z.number().int().nonnegative(),
   categories: z.array(dashboardCategorySchema),
   trend: z.array(dashboardTrendPointSchema),
+  assetRankings: z.object({
+    highestHoldingDailyCost: z.array(dashboardAssetInsightSchema).max(5),
+    longestHeld: z.array(dashboardAssetInsightSchema).max(5),
+  }),
   recentActivity: z.array(recentActivitySchema),
   upcomingReminders: z.array(dashboardReminderSchema),
 });
 
 export type Dashboard = z.infer<typeof dashboardSchema>;
+export type DashboardAssetInsight = z.infer<typeof dashboardAssetInsightSchema>;
 export type DashboardTrendPoint = z.infer<typeof dashboardTrendPointSchema>;
 export type RecentActivity = z.infer<typeof recentActivitySchema>;
