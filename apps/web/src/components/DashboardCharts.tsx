@@ -12,78 +12,68 @@ import { localeForIntl } from '../lib/i18n.js';
 use([LineChart, TreemapChart, GridComponent, TooltipComponent, CanvasRenderer]);
 
 interface ChartPalette {
-  accent: string;
-  edge: string;
-  gold: string;
   ink: string;
-  isReport: boolean;
+  line: string;
   muted: string;
+  negative: string;
   positive: string;
-  slot: string;
-  water: string;
+  primary: string;
+  ramp: string[];
+  surface: string;
 }
 
-const reportCategoryColors = [
-  '#6f88da',
-  '#d2ad75',
-  '#4eae82',
-  '#b57568',
-  '#7d72bc',
-  '#568ca4',
-  '#a98458',
-  '#7c8b68',
-];
+const chartFont =
+  'ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif';
 
-function resolvedThemeIsDark(): boolean {
-  const theme = document.documentElement.dataset.theme;
-  return (
-    theme === 'dark' ||
-    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-  );
-}
+const rampFallback = ['#82b5bb', '#5b9fa7', '#358891', '#1a7078', '#13575e'];
 
+/* 只有一个来源：theme.css 的 token。主题切换由下面的 MutationObserver 驱动，
+ * 不再按路由分叉出第二套调色板。 */
 function readChartPalette(): ChartPalette {
-  if (window.location.pathname === '/') {
-    return resolvedThemeIsDark()
-      ? {
-          accent: '#7d98ff',
-          edge: '#34383d',
-          gold: '#d5b27a',
-          ink: '#f4f2ed',
-          isReport: true,
-          muted: '#9da1a6',
-          positive: '#4bc68b',
-          slot: '#1b1e21',
-          water: '#78a9c2',
-        }
-      : {
-          accent: '#3764c6',
-          edge: '#d9dde1',
-          gold: '#a86d25',
-          ink: '#181b1e',
-          isReport: true,
-          muted: '#687078',
-          positive: '#267a5a',
-          slot: '#ffffff',
-          water: '#397f9f',
-        };
-  }
-
   const styles = getComputedStyle(document.documentElement);
   const read = (name: string, fallback: string) =>
     styles.getPropertyValue(name).trim() || fallback;
 
   return {
-    accent: read('--orange', '#ff9838'),
-    edge: read('--slot-dark', '#0e121b'),
-    gold: read('--hero-signal', '#ffd45a'),
-    ink: read('--ink', '#fff1c5'),
-    isReport: false,
-    muted: read('--muted', '#aaaeb9'),
-    positive: read('--lime', '#7edc83'),
-    slot: read('--slot', '#202635'),
-    water: read('--cyan', '#68c8d3'),
+    ink: read('--foreground', '#1c1a17'),
+    line: read('--border', '#e5e0d8'),
+    muted: read('--muted-foreground', '#6b655c'),
+    negative: read('--destructive', '#a33a2e'),
+    positive: read('--success', '#3f6b47'),
+    primary: read('--primary', '#2f5d62'),
+    ramp: rampFallback.map((fallback, index) =>
+      read(`--chart-${String(index + 1)}`, fallback),
+    ),
+    surface: read('--card', '#ffffff'),
   };
+}
+
+function relativeLuminance(color: string): number | null {
+  const match = /^#([\da-f]{6})$/iu.exec(color.trim());
+  if (!match?.[1]) return null;
+  const value = Number.parseInt(match[1], 16);
+  const channel = (shift: number) => {
+    const srgb = ((value >> shift) & 0xff) / 255;
+    return srgb <= 0.04045 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(16) + 0.7152 * channel(8) + 0.0722 * channel(0);
+}
+
+/* 树图色阶跨度大，标签不能固定用白色 —— 按每格底色挑对比度更高的一侧。 */
+function readableInk(background: string): string {
+  const luminance = relativeLuminance(background);
+  if (luminance === null) return '#fdfcfa';
+  const onLight = (luminance + 0.05) / 0.05;
+  const onDark = 1.05 / (luminance + 0.05);
+  return onLight >= onDark ? '#1c1a17' : '#fdfcfa';
+}
+
+/* 量级 → 色阶。净投入分布通常长尾，用 sqrt 让小额分类之间也拉得开。 */
+function rampStep(value: number, max: number, ramp: string[]): string {
+  const last = ramp.at(-1) ?? rampFallback[4] ?? '#13575e';
+  if (max <= 0 || !Number.isFinite(value)) return last;
+  const ratio = Math.sqrt(Math.min(1, Math.max(0, value / max)));
+  return ramp[Math.min(ramp.length - 1, Math.floor(ratio * ramp.length))] ?? last;
 }
 
 function withAlpha(color: string, alpha: string) {
@@ -153,18 +143,15 @@ function useChart(option: EChartsCoreOption) {
 
 function chartTooltip(palette: ChartPalette) {
   return {
-    backgroundColor: palette.slot,
-    borderColor: palette.edge,
-    borderWidth: palette.isReport ? 1 : 3,
-    extraCssText: palette.isReport
-      ? 'border-radius:10px;box-shadow:0 14px 32px rgba(0,0,0,.22);'
-      : 'border-radius:0;box-shadow:4px 4px 0 rgba(0,0,0,.28);',
+    backgroundColor: palette.surface,
+    borderColor: palette.line,
+    borderWidth: 1,
+    extraCssText:
+      'border-radius:4px;box-shadow:0 4px 12px rgba(28,26,23,.10);padding:8px 10px;',
     textStyle: {
       color: palette.ink,
-      fontFamily: palette.isReport
-        ? 'Inter, PingFang SC, Hiragino Sans GB, Microsoft YaHei, system-ui, sans-serif'
-        : 'Fusion Pixel Chronicle',
-      fontSize: palette.isReport ? 12 : 11,
+      fontFamily: chartFont,
+      fontSize: 12,
     },
   };
 }
@@ -174,15 +161,12 @@ function categoryAxis(palette: ChartPalette, dates: string[]) {
     type: 'category' as const,
     boundaryGap: false,
     data: dates,
-    axisLine: {
-      lineStyle: { color: palette.edge, width: palette.isReport ? 1 : 3 },
-    },
+    /* 坐标轴退到背景里：一条细暖线，不抢数据的注意力 */
+    axisLine: { lineStyle: { color: palette.line, width: 1 } },
     axisLabel: {
       color: palette.muted,
-      fontFamily: palette.isReport
-        ? 'Inter, PingFang SC, Hiragino Sans GB, Microsoft YaHei, system-ui, sans-serif'
-        : 'Fusion Pixel Chronicle',
-      fontSize: palette.isReport ? 11 : 10,
+      fontFamily: chartFont,
+      fontSize: 11,
       hideOverlap: true,
     },
     axisTick: { show: false },
@@ -194,10 +178,8 @@ function valueAxis(palette: ChartPalette, currency: string) {
     type: 'value' as const,
     axisLabel: {
       color: palette.muted,
-      fontFamily: palette.isReport
-        ? 'Inter, PingFang SC, Hiragino Sans GB, Microsoft YaHei, system-ui, sans-serif'
-        : 'Fusion Pixel Chronicle',
-      fontSize: palette.isReport ? 11 : 10,
+      fontFamily: chartFont,
+      fontSize: 11,
       formatter: (value: number) =>
         new Intl.NumberFormat(localeForIntl(), {
           style: 'currency',
@@ -206,12 +188,8 @@ function valueAxis(palette: ChartPalette, currency: string) {
           maximumFractionDigits: 1,
         }).format(value),
     },
-    splitLine: {
-      lineStyle: {
-        color: withAlpha(palette.muted, palette.isReport ? '20' : '30'),
-        type: palette.isReport ? 'dashed' : 'solid',
-      },
-    },
+    axisLine: { show: false },
+    splitLine: { lineStyle: { color: palette.line, type: 'dashed' as const } },
   };
 }
 
@@ -231,19 +209,16 @@ export function PortfolioTrendChart({
   const metadata = {
     netInvestment: {
       name: '持有资产净投入',
-      color: palette.gold,
       value: (point: Dashboard['trend'][number]) => point.netInvestmentMinor,
       suffix: '',
     },
     holdingDailyCost: {
       name: '日均持有成本',
-      color: palette.accent,
       value: (point: Dashboard['trend'][number]) => point.holdingDailyCostMinor,
       suffix: '/天',
     },
     serviceDailyCost: {
       name: '日均服役成本',
-      color: palette.positive,
       value: (point: Dashboard['trend'][number]) => point.dailyCostMinor,
       suffix: '/天',
     },
@@ -255,6 +230,11 @@ export function PortfolioTrendChart({
       trigger: 'axis',
       valueFormatter: (value: unknown) =>
         `${formatMajorCurrency(value, currency)}${metadata.suffix}`,
+      /* 十字准星：折线图默认带悬停层 */
+      axisPointer: {
+        type: 'line',
+        lineStyle: { color: palette.muted, type: 'dashed', width: 1 },
+      },
       ...chartTooltip(palette),
     },
     xAxis: categoryAxis(
@@ -266,19 +246,20 @@ export function PortfolioTrendChart({
       {
         name: metadata.name,
         type: 'line',
-        smooth: palette.isReport ? 0.18 : false,
+        /* 单序列 —— 图注由 figcaption 承担，不需要图例，颜色也不承担身份。
+         * 不平滑：折线是账目，不该被插值美化。 */
+        smooth: false,
         showSymbol: trend.length <= 30,
-        symbol: palette.isReport ? 'circle' : 'rect',
-        symbolSize: palette.isReport ? 6 : 7,
-        lineStyle: { color: metadata.color, width: palette.isReport ? 3 : 4 },
+        symbol: 'circle',
+        symbolSize: 8,
+        lineStyle: { color: palette.primary, width: 2 },
         itemStyle: {
-          color: metadata.color,
-          borderColor: palette.slot,
-          borderWidth: palette.isReport ? 2 : 1,
+          color: palette.primary,
+          /* 与底色同色的描边，让重叠的点互相分开 */
+          borderColor: palette.surface,
+          borderWidth: 2,
         },
-        areaStyle: {
-          color: withAlpha(metadata.color, palette.isReport ? '18' : '2e'),
-        },
+        areaStyle: { color: withAlpha(palette.primary, '14') },
         data: trend.map((point) => majorFromMinor(metadata.value(point), currency)),
       },
     ],
@@ -307,6 +288,14 @@ export function AssetMapChart({
   );
   const useNetInvestment = positiveCategories.length > 0;
   const visibleCategories = useNetInvestment ? positiveCategories : categories;
+  const tileValue = (category: Dashboard['categories'][number]) =>
+    useNetInvestment
+      ? majorFromMinor(category.netCostMinor, currency)
+      : category.itemCount;
+  const maxTileValue = visibleCategories.reduce(
+    (largest, category) => Math.max(largest, tileValue(category)),
+    0,
+  );
   const option: EChartsCoreOption = {
     animationDuration: 180,
     tooltip: {
@@ -338,9 +327,7 @@ export function AssetMapChart({
         left: 0,
         label: {
           show: true,
-          color: '#ffffff',
-          fontFamily:
-            'Inter, PingFang SC, Hiragino Sans GB, Microsoft YaHei, system-ui, sans-serif',
+          fontFamily: chartFont,
           fontSize: 13,
           fontWeight: 600,
           lineHeight: 20,
@@ -357,29 +344,30 @@ export function AssetMapChart({
         },
         upperLabel: { show: false },
         itemStyle: {
-          borderColor: palette.slot,
-          borderWidth: 4,
-          gapWidth: 4,
-          borderRadius: 8,
+          /* 与底色同色的 2px 间隙，让相邻色块彼此分开 */
+          borderColor: palette.surface,
+          borderWidth: 2,
+          gapWidth: 2,
+          borderRadius: 2,
         },
         emphasis: {
           focus: 'self',
-          itemStyle: { borderColor: palette.gold, borderWidth: 3 },
+          itemStyle: { borderColor: palette.primary, borderWidth: 2 },
         },
-        data: visibleCategories.map((category, index) => ({
-          name: category.name,
-          value: useNetInvestment
-            ? majorFromMinor(category.netCostMinor, currency)
-            : category.itemCount,
-          itemCount: category.itemCount,
-          netCostMinor: category.netCostMinor,
-          itemStyle: {
-            color:
-              category.color ??
-              reportCategoryColors[index % reportCategoryColors.length] ??
-              palette.accent,
-          },
-        })),
+        data: visibleCategories.map((category) => {
+          /* 分类自带颜色时优先用用户设定；否则按量级取墨青色阶。
+           * 颜色跟着量级走，不跟着排位走 —— 筛掉几个分类不会让其余的重新上色。 */
+          const fill =
+            category.color ?? rampStep(tileValue(category), maxTileValue, palette.ramp);
+          return {
+            name: category.name,
+            value: tileValue(category),
+            itemCount: category.itemCount,
+            netCostMinor: category.netCostMinor,
+            itemStyle: { color: fill },
+            label: { color: readableInk(fill) },
+          };
+        }),
       },
     ],
   };
@@ -426,19 +414,17 @@ export function AssetCostTrendChart({
       {
         name: '日均成本',
         type: 'line',
-        smooth: palette.isReport ? 0.16 : false,
+        smooth: false,
         showSymbol,
-        symbol: palette.isReport ? 'circle' : 'rect',
-        symbolSize: palette.isReport ? 6 : 7,
-        lineStyle: { color: palette.water, width: palette.isReport ? 3 : 4 },
+        symbol: 'circle',
+        symbolSize: 8,
+        lineStyle: { color: palette.primary, width: 2 },
         itemStyle: {
-          color: palette.water,
-          borderColor: palette.edge,
-          borderWidth: 1,
+          color: palette.primary,
+          borderColor: palette.surface,
+          borderWidth: 2,
         },
-        areaStyle: {
-          color: withAlpha(palette.water, palette.isReport ? '14' : '2a'),
-        },
+        areaStyle: { color: withAlpha(palette.primary, '14') },
         data: trend.map((point) =>
           point.dailyCostMinor === null
             ? null

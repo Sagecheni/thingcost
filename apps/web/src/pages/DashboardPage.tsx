@@ -14,9 +14,16 @@ import {
 } from 'lucide-react';
 import { lazy, Suspense, useMemo, useState } from 'react';
 
+import { cn } from '@thingcost/ui';
+
 import { api } from '../lib/api.js';
 import { formatDailyMinorCurrency, formatMinorCurrency } from '../lib/format.js';
 import { queryKeys } from '../lib/query-keys.js';
+import { Button } from '../components/ui/button.js';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.js';
+import { EmptyState } from '../components/ui/empty-state.js';
+import { PageHeader } from '../components/ui/page-header.js';
+import { SegmentedControl } from '../components/ui/segmented-control.js';
 
 const PortfolioTrendChart = lazy(() =>
   import('../components/DashboardCharts.js').then((module) => ({
@@ -30,6 +37,18 @@ const AssetMapChart = lazy(() =>
 );
 
 type TrendMetric = 'netInvestment' | 'holdingDailyCost' | 'serviceDailyCost';
+
+const trendMetricOptions = [
+  { value: 'netInvestment', label: '净投入变化' },
+  { value: 'holdingDailyCost', label: '日均持有' },
+  { value: 'serviceDailyCost', label: '日均服役' },
+] as const satisfies readonly { value: TrendMetric; label: string }[];
+
+const periodOptions = [
+  { value: 30, label: '30 天' },
+  { value: 90, label: '90 天' },
+  { value: 180, label: '180 天' },
+] as const;
 
 const trendMetricLabels: Record<TrendMetric, string> = {
   netInvestment: '净投入变化',
@@ -48,8 +67,40 @@ function categoryShare(value: string, total: bigint): number {
   return Number((amount * 1000n) / total) / 10;
 }
 
+/* 章节小标题：图标 + 标题，配一行说明。档案里每一段都先自报家门。 */
+function PanelHeading({
+  title,
+  hint,
+  id,
+  action,
+}: {
+  title: string;
+  hint?: string;
+  id?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+      <div className="min-w-0 space-y-0.5">
+        {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+        <CardTitle id={id}>{title}</CardTitle>
+      </div>
+      {action}
+    </CardHeader>
+  );
+}
+
+/* 排名序号：两位数字，等宽对齐，弱化成档案编号 */
+function RankIndex({ index }: { index: number }) {
+  return (
+    <span className="tnum w-6 shrink-0 text-xs text-muted-foreground">
+      {String(index + 1).padStart(2, '0')}
+    </span>
+  );
+}
+
 export function DashboardPage() {
-  const [periodDays, setPeriodDays] = useState(30);
+  const [periodDays, setPeriodDays] = useState<number>(30);
   const [trendMetric, setTrendMetric] = useState<TrendMetric>('netInvestment');
   const dashboardQuery = useQuery({
     queryKey: queryKeys.dashboard(periodDays),
@@ -67,11 +118,15 @@ export function DashboardPage() {
   );
 
   if (dashboardQuery.isPending) {
-    return <div className="report-dashboard-loading">正在生成资产报表…</div>;
+    return <p className="py-16 text-center text-sm text-muted-foreground">正在生成资产报表…</p>;
   }
 
   if (dashboardQuery.isError) {
-    return <div className="form-error">{dashboardQuery.error.message}</div>;
+    return (
+      <p className="rounded-md border border-destructive/30 bg-destructive-subtle px-4 py-3 text-sm text-destructive">
+        {dashboardQuery.error.message}
+      </p>
+    );
   }
 
   if (!dashboard) {
@@ -89,342 +144,404 @@ export function DashboardPage() {
     dashboard.repairCount +
     dashboard.retiredCount;
   const statusItems = [
-    { label: '服役', value: dashboard.serviceItemCount, tone: 'service' },
-    { label: '闲置', value: dashboard.idleCount, tone: 'idle' },
-    { label: '借出', value: dashboard.loanedCount, tone: 'loaned' },
-    { label: '维修', value: dashboard.repairCount, tone: 'repair' },
-    { label: '退役持有', value: dashboard.retiredCount, tone: 'retired' },
-  ] as const;
+    { label: '服役', value: dashboard.serviceItemCount },
+    { label: '闲置', value: dashboard.idleCount },
+    { label: '借出', value: dashboard.loanedCount },
+    { label: '维修', value: dashboard.repairCount },
+    { label: '退役持有', value: dashboard.retiredCount },
+  ];
+  const gainText = (isGain: boolean) => (isGain ? 'text-success' : 'text-foreground');
 
   return (
-    <div className="asset-report-dashboard">
-      <header className="report-page-header">
-        <div>
-          <span className="report-page-kicker">个人资产报表</span>
-          <h1>资产总览</h1>
-        </div>
-        <div className="report-page-actions">
-          <time dateTime={dashboard.asOfDate}>截至 {dashboard.asOfDate}</time>
-          <Link className="report-primary-action" to="/assets/new">
-            <Plus aria-hidden="true" size={18} strokeWidth={2} />
-            添加物品
-          </Link>
-        </div>
-      </header>
-
-      <section className="report-overview-card" aria-labelledby="asset-overview-title">
-        <div className="report-overview-lead">
-          <div className="report-section-label">
-            <WalletCards aria-hidden="true" size={18} strokeWidth={1.8} />
-            <h2 id="asset-overview-title">持有资产净投入</h2>
-          </div>
-          <strong className={netInvestmentIsGain ? 'is-gain' : undefined}>
-            {formatMinorCurrency(dashboard.currentNetInvestmentMinor, currency)}
-          </strong>
-          <p>
-            当前持有 {dashboard.heldItemCount} 件 · 其中服役 {dashboard.serviceItemCount}{' '}
-            件
-          </p>
-          {dashboard.unknownCostCount > 0 && (
-            <Link
-              className="report-data-warning"
-              to="/assets"
-              search={{ costKnowledge: 'unknown' }}
+    <div className="mx-auto flex max-w-6xl flex-col gap-6">
+      <PageHeader
+        eyebrow="个人资产报表"
+        title="资产总览"
+        actions={
+          <>
+            <time
+              className="tnum text-xs text-muted-foreground"
+              dateTime={dashboard.asOfDate}
             >
-              {dashboard.unknownCostCount} 件物品尚未记录成本
-            </Link>
-          )}
-        </div>
+              截至 {dashboard.asOfDate}
+            </time>
+            <Button asChild>
+              <Link to="/assets/new">
+                <Plus aria-hidden="true" />
+                添加物品
+              </Link>
+            </Button>
+          </>
+        }
+      />
 
-        <dl className="report-overview-metrics">
-          <div>
-            <dt>
-              <Clock3 aria-hidden="true" size={17} strokeWidth={1.8} />
-              日均持有成本
-            </dt>
-            <dd className={holdingDailyIsGain ? 'is-gain' : undefined}>
-              {formatDailyMinorCurrency(dashboard.currentHoldingDailyCostMinor, currency)}
-            </dd>
-            <small>包含闲置、借出与退役持有</small>
-          </div>
-          <div>
-            <dt>
-              <CircleDollarSign aria-hidden="true" size={17} strokeWidth={1.8} />
-              日均服役成本
-            </dt>
-            <dd className={serviceDailyIsGain ? 'is-gain' : undefined}>
-              {formatDailyMinorCurrency(dashboard.currentDailyCostMinor, currency)}
-            </dd>
-            <small>按实际服役天数摊薄</small>
-          </div>
-          <div>
-            <dt>
-              {periodIsNetInflow ? (
-                <ArrowDownRight aria-hidden="true" size={17} strokeWidth={1.8} />
-              ) : (
-                <ArrowUpRight aria-hidden="true" size={17} strokeWidth={1.8} />
+      {/* 主读数 + 三个派生指标 */}
+      <Card aria-labelledby="asset-overview-title">
+        <CardContent className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:gap-8">
+          <div className="space-y-1.5">
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <WalletCards aria-hidden="true" className="size-4" strokeWidth={1.8} />
+              <span id="asset-overview-title">持有资产净投入</span>
+            </p>
+            <strong
+              className={cn(
+                'tnum block text-4xl leading-tight font-semibold sm:text-5xl',
+                gainText(netInvestmentIsGain),
               )}
-              近 {dashboard.periodDays} 天{periodIsNetInflow ? '净流入' : '净支出'}
-            </dt>
-            <dd className={periodIsNetInflow ? 'is-gain' : undefined}>
-              {formatMinorCurrency(
-                absoluteMinor(dashboard.periodNetSpendingMinor),
-                currency,
-              )}
-            </dd>
-            <small>
-              流出 {formatMinorCurrency(dashboard.periodSpendingMinor, currency)} · 流入{' '}
-              {formatMinorCurrency(dashboard.periodInflowMinor, currency)}
-            </small>
-          </div>
-        </dl>
-      </section>
-
-      <section
-        className="report-panel report-map-panel"
-        aria-labelledby="asset-map-title"
-      >
-        <header className="report-panel-header">
-          <div>
-            <span>按当前持有物品的净投入</span>
-            <h2 id="asset-map-title">资产版图</h2>
-          </div>
-          <strong>{dashboard.categories.length} 个分类</strong>
-        </header>
-
-        {dashboard.categories.length === 0 ? (
-          <div className="report-empty-state">
-            <Archive aria-hidden="true" size={24} strokeWidth={1.7} />
-            <span>添加物品后生成资产版图</span>
-          </div>
-        ) : (
-          <div className="report-map-layout">
-            <figure className="report-map-figure">
-              <Suspense
-                fallback={<div className="report-chart-loading">正在绘制资产版图…</div>}
+            >
+              {formatMinorCurrency(dashboard.currentNetInvestmentMinor, currency)}
+            </strong>
+            <p className="text-sm text-muted-foreground">
+              当前持有 {dashboard.heldItemCount} 件 · 其中服役{' '}
+              {dashboard.serviceItemCount} 件
+            </p>
+            {dashboard.unknownCostCount > 0 && (
+              /* 未知成本从不并进总额，只在这里显式提示 */
+              <Link
+                className={cn(
+                  'mt-1 inline-flex items-center gap-1 rounded-sm border border-warning/25',
+                  'bg-warning-subtle px-2 py-1 text-xs text-warning hover:underline',
+                )}
+                to="/assets"
+                search={{ costKnowledge: 'unknown' }}
               >
-                <AssetMapChart
-                  categories={dashboard.categories}
-                  currency={dashboard.baseCurrency}
-                />
-              </Suspense>
-            </figure>
+                {dashboard.unknownCostCount} 件物品尚未记录成本
+              </Link>
+            )}
+          </div>
 
-            <div className="report-category-ranking" aria-label="分类净投入排行">
-              {dashboard.categories.map((category, index) => {
-                const share = categoryShare(category.netCostMinor, positiveCategoryTotal);
-                return (
-                  <div className="report-category-row" key={category.categoryId}>
-                    <div className="report-category-copy">
-                      <span className="report-rank-index">
-                        {String(index + 1).padStart(2, '0')}
-                      </span>
-                      <div>
-                        <strong>{category.name}</strong>
-                        <span>{category.itemCount} 件</span>
-                      </div>
-                      <div className="report-category-value">
-                        <strong>
+          <dl className="grid gap-4 sm:grid-cols-3 lg:border-l lg:border-border lg:pl-8">
+            <div className="space-y-1">
+              <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock3 aria-hidden="true" className="size-3.5" strokeWidth={1.8} />
+                日均持有成本
+              </dt>
+              <dd
+                className={cn('tnum text-lg font-semibold', gainText(holdingDailyIsGain))}
+              >
+                {formatDailyMinorCurrency(
+                  dashboard.currentHoldingDailyCostMinor,
+                  currency,
+                )}
+              </dd>
+              <p className="text-xs text-muted-foreground">包含闲置、借出与退役持有</p>
+            </div>
+            <div className="space-y-1">
+              <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <CircleDollarSign
+                  aria-hidden="true"
+                  className="size-3.5"
+                  strokeWidth={1.8}
+                />
+                日均服役成本
+              </dt>
+              <dd
+                className={cn('tnum text-lg font-semibold', gainText(serviceDailyIsGain))}
+              >
+                {formatDailyMinorCurrency(dashboard.currentDailyCostMinor, currency)}
+              </dd>
+              <p className="text-xs text-muted-foreground">按实际服役天数摊薄</p>
+            </div>
+            <div className="space-y-1">
+              <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                {periodIsNetInflow ? (
+                  <ArrowDownRight
+                    aria-hidden="true"
+                    className="size-3.5"
+                    strokeWidth={1.8}
+                  />
+                ) : (
+                  <ArrowUpRight
+                    aria-hidden="true"
+                    className="size-3.5"
+                    strokeWidth={1.8}
+                  />
+                )}
+                近 {dashboard.periodDays} 天{periodIsNetInflow ? '净流入' : '净支出'}
+              </dt>
+              <dd className={cn('tnum text-lg font-semibold', gainText(periodIsNetInflow))}>
+                {formatMinorCurrency(
+                  absoluteMinor(dashboard.periodNetSpendingMinor),
+                  currency,
+                )}
+              </dd>
+              <p className="tnum text-xs text-muted-foreground">
+                流出 {formatMinorCurrency(dashboard.periodSpendingMinor, currency)} · 流入{' '}
+                {formatMinorCurrency(dashboard.periodInflowMinor, currency)}
+              </p>
+            </div>
+          </dl>
+        </CardContent>
+      </Card>
+
+      {/* 资产版图：树图 + 排行表（排行同时充当图表的表格视图） */}
+      <Card aria-labelledby="asset-map-title">
+        <PanelHeading
+          id="asset-map-title"
+          title="资产版图"
+          hint="按当前持有物品的净投入"
+          action={
+            <span className="tnum shrink-0 text-xs text-muted-foreground">
+              {dashboard.categories.length} 个分类
+            </span>
+          }
+        />
+        <CardContent>
+          {dashboard.categories.length === 0 ? (
+            <EmptyState icon={Archive} title="添加物品后生成资产版图" />
+          ) : (
+            <div className="grid gap-6 lg:grid-cols-2">
+              <figure className="m-0">
+                <Suspense
+                  fallback={
+                    <p className="py-12 text-center text-sm text-muted-foreground">
+                      正在绘制资产版图…
+                    </p>
+                  }
+                >
+                  <AssetMapChart
+                    categories={dashboard.categories}
+                    currency={dashboard.baseCurrency}
+                  />
+                </Suspense>
+              </figure>
+
+              <div className="flex flex-col gap-3" aria-label="分类净投入排行">
+                {dashboard.categories.map((category, index) => {
+                  const share = categoryShare(
+                    category.netCostMinor,
+                    positiveCategoryTotal,
+                  );
+                  return (
+                    <div className="space-y-1.5" key={category.categoryId}>
+                      <div className="flex items-baseline gap-2">
+                        <RankIndex index={index} />
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                          {category.name}
+                        </span>
+                        <span className="tnum shrink-0 text-xs text-muted-foreground">
+                          {category.itemCount} 件
+                        </span>
+                        <span className="tnum shrink-0 text-sm font-medium">
                           {formatMinorCurrency(category.netCostMinor, currency)}
-                        </strong>
-                        <span>{share > 0 ? `${share.toFixed(1)}%` : '净投入不为正'}</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 pl-8">
+                        <span
+                          className="h-1 flex-1 overflow-hidden rounded-full bg-muted"
+                          aria-hidden="true"
+                        >
+                          <span
+                            className="block h-full rounded-full bg-primary"
+                            style={{
+                              width: `${String(share)}%`,
+                              ...(category.color
+                                ? { backgroundColor: category.color }
+                                : {}),
+                            }}
+                          />
+                        </span>
+                        <span className="tnum w-24 shrink-0 text-right text-xs text-muted-foreground">
+                          {share > 0 ? `${share.toFixed(1)}%` : '净投入不为正'}
+                        </span>
                       </div>
                     </div>
-                    <span className="report-category-track" aria-hidden="true">
-                      <span
-                        style={{
-                          width: `${String(share)}%`,
-                          ...(category.color ? { backgroundColor: category.color } : {}),
-                        }}
-                      />
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
-      </section>
+          )}
+        </CardContent>
+      </Card>
 
-      <section className="report-panel report-trend-panel" aria-labelledby="trend-title">
-        <header className="report-panel-header report-trend-header">
-          <div>
-            <span>持有规模与每日成本的时间变化</span>
-            <h2 id="trend-title">资产趋势</h2>
-          </div>
-          <div className="report-chart-controls">
-            <div className="report-segmented-control" aria-label="趋势指标">
-              {(Object.keys(trendMetricLabels) as TrendMetric[]).map((metric) => (
-                <button
-                  className={trendMetric === metric ? 'active' : undefined}
-                  key={metric}
-                  type="button"
-                  aria-pressed={trendMetric === metric}
-                  onClick={() => setTrendMetric(metric)}
-                >
-                  {trendMetricLabels[metric]}
-                </button>
-              ))}
+      {/* 趋势 */}
+      <Card aria-labelledby="trend-title">
+        <PanelHeading
+          id="trend-title"
+          title="资产趋势"
+          hint="持有规模与每日成本的时间变化"
+          action={
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <SegmentedControl
+                label="趋势指标"
+                value={trendMetric}
+                options={trendMetricOptions}
+                onChange={setTrendMetric}
+              />
+              <SegmentedControl
+                label="报表时间范围"
+                value={periodDays}
+                options={periodOptions}
+                onChange={setPeriodDays}
+              />
             </div>
-            <div className="report-period-control" aria-label="报表时间范围">
-              {[30, 90, 180].map((days) => (
-                <button
-                  className={periodDays === days ? 'active' : undefined}
-                  key={days}
-                  type="button"
-                  aria-pressed={periodDays === days}
-                  onClick={() => setPeriodDays(days)}
-                >
-                  {days} 天
-                </button>
-              ))}
-            </div>
-          </div>
-        </header>
-        <figure className="report-trend-figure">
-          <figcaption>{trendMetricLabels[trendMetric]}</figcaption>
-          <Suspense
-            fallback={<div className="report-chart-loading">正在绘制资产趋势…</div>}
-          >
-            <PortfolioTrendChart
-              currency={dashboard.baseCurrency}
-              metric={trendMetric}
-              trend={dashboard.trend}
-            />
-          </Suspense>
-        </figure>
-      </section>
+          }
+        />
+        <CardContent>
+          <figure className="m-0 space-y-2">
+            {/* 单序列折线不需要图例，标题即图注 */}
+            <figcaption className="text-xs text-muted-foreground">
+              {trendMetricLabels[trendMetric]}
+            </figcaption>
+            <Suspense
+              fallback={
+                <p className="py-12 text-center text-sm text-muted-foreground">
+                  正在绘制资产趋势…
+                </p>
+              }
+            >
+              <PortfolioTrendChart
+                currency={dashboard.baseCurrency}
+                metric={trendMetric}
+                trend={dashboard.trend}
+              />
+            </Suspense>
+          </figure>
+        </CardContent>
+      </Card>
 
-      <section className="report-insight-grid" aria-label="资产效率">
-        <article className="report-panel report-ranking-panel">
-          <header className="report-panel-header">
-            <div>
-              <span>优先关注每天仍在摊薄的高成本物品</span>
-              <h2>日均持有成本最高</h2>
-            </div>
-          </header>
-          <div className="report-asset-ranking">
+      {/* 两个排行 */}
+      <section className="grid gap-6 lg:grid-cols-2" aria-label="资产效率">
+        <Card>
+          <PanelHeading
+            title="日均持有成本最高"
+            hint="优先关注每天仍在摊薄的高成本物品"
+          />
+          <CardContent className="flex flex-col">
             {dashboard.assetRankings.highestHoldingDailyCost.length === 0 ? (
-              <div className="report-empty-state">暂无可计算成本的物品</div>
+              <EmptyState title="暂无可计算成本的物品" />
             ) : (
               dashboard.assetRankings.highestHoldingDailyCost.map((asset, index) => (
                 <Link
                   key={asset.assetId}
+                  className="flex items-center gap-3 border-b border-border py-2.5 last:border-0 hover:bg-accent"
                   to="/assets/$assetId"
                   params={{ assetId: asset.assetId }}
                 >
-                  <span className="report-rank-index">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                  <span className="report-ranked-asset-copy">
-                    <strong>{asset.name}</strong>
-                    <small>
+                  <RankIndex index={index} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">
+                      {asset.name}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
                       {asset.categoryName} · {asset.statusName}
-                    </small>
+                    </span>
                   </span>
-                  <span className="report-ranked-asset-value">
-                    <strong>
+                  <span className="shrink-0 text-right">
+                    <span className="tnum block text-sm font-medium">
                       {formatDailyMinorCurrency(asset.holdingDailyCostMinor, currency)}
-                    </strong>
-                    <small>{asset.holdingDays} 天</small>
+                    </span>
+                    <span className="tnum block text-xs text-muted-foreground">
+                      {asset.holdingDays} 天
+                    </span>
                   </span>
                 </Link>
               ))
             )}
-          </div>
-        </article>
+          </CardContent>
+        </Card>
 
-        <article className="report-panel report-ranking-panel">
-          <header className="report-panel-header">
-            <div>
-              <span>已经陪伴最久的当前持有物品</span>
-              <h2>持有时间最长</h2>
-            </div>
-          </header>
-          <div className="report-asset-ranking">
+        <Card>
+          <PanelHeading title="持有时间最长" hint="已经陪伴最久的当前持有物品" />
+          <CardContent className="flex flex-col">
             {dashboard.assetRankings.longestHeld.length === 0 ? (
-              <div className="report-empty-state">暂无持有中的物品</div>
+              <EmptyState title="暂无持有中的物品" />
             ) : (
               dashboard.assetRankings.longestHeld.map((asset, index) => (
                 <Link
                   key={asset.assetId}
+                  className="flex items-center gap-3 border-b border-border py-2.5 last:border-0 hover:bg-accent"
                   to="/assets/$assetId"
                   params={{ assetId: asset.assetId }}
                 >
-                  <span className="report-rank-index">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                  <span className="report-ranked-asset-copy">
-                    <strong>{asset.name}</strong>
-                    <small>
+                  <RankIndex index={index} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">
+                      {asset.name}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
                       {asset.categoryName} · {asset.statusName}
-                    </small>
+                    </span>
                   </span>
-                  <span className="report-ranked-asset-value">
-                    <strong>{asset.holdingDays} 天</strong>
-                    <small>
+                  <span className="shrink-0 text-right">
+                    <span className="tnum block text-sm font-medium">
+                      {asset.holdingDays} 天
+                    </span>
+                    <span className="tnum block text-xs text-muted-foreground">
                       {formatDailyMinorCurrency(asset.holdingDailyCostMinor, currency)}
-                    </small>
+                    </span>
                   </span>
                 </Link>
               ))
             )}
-          </div>
-        </article>
+          </CardContent>
+        </Card>
       </section>
 
-      <section className="report-utility-grid">
-        <article className="report-panel report-status-panel">
-          <header className="report-panel-header">
-            <div>
-              <span>
-                {attentionCount > 0 ? `${attentionCount} 件需要留意` : '当前状态平稳'}
-              </span>
-              <h2>持有状态</h2>
-            </div>
-            <Layers3 aria-hidden="true" size={20} strokeWidth={1.7} />
-          </header>
-          <dl className="report-status-list">
-            {statusItems.map((item) => (
-              <div key={item.label} data-tone={item.tone}>
-                <dt>{item.label}</dt>
-                <dd>{item.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </article>
+      {/* 状态 + 提醒 */}
+      <section className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <PanelHeading
+            title="持有状态"
+            hint={attentionCount > 0 ? `${attentionCount} 件需要留意` : '当前状态平稳'}
+            action={
+              <Layers3
+                aria-hidden="true"
+                className="size-5 shrink-0 text-muted-foreground"
+                strokeWidth={1.7}
+              />
+            }
+          />
+          <CardContent>
+            <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-md border border-border bg-border sm:grid-cols-5">
+              {statusItems.map((item) => (
+                <div className="bg-card px-3 py-2.5 text-center" key={item.label}>
+                  <dt className="text-xs text-muted-foreground">{item.label}</dt>
+                  <dd className="tnum mt-0.5 text-lg font-semibold">{item.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </CardContent>
+        </Card>
 
-        <article className="report-panel report-reminder-panel">
-          <header className="report-panel-header">
-            <div>
-              <span>未来 90 天</span>
-              <h2>即将到期</h2>
-            </div>
-            <Link className="report-text-link" to="/reminders">
-              查看全部
-            </Link>
-          </header>
-          {dashboard.upcomingReminders.length === 0 ? (
-            <div className="report-empty-state">
-              <Bell aria-hidden="true" size={21} strokeWidth={1.7} />
-              <span>暂无即将到期的提醒</span>
-            </div>
-          ) : (
-            <div className="report-reminder-list">
-              {dashboard.upcomingReminders.slice(0, 4).map((reminder) => (
+        <Card>
+          <PanelHeading
+            title="即将到期"
+            hint="未来 90 天"
+            action={
+              <Button asChild variant="link" size="sm" className="h-auto p-0">
+                <Link to="/reminders">查看全部</Link>
+              </Button>
+            }
+          />
+          <CardContent className="flex flex-col">
+            {dashboard.upcomingReminders.length === 0 ? (
+              <EmptyState icon={Bell} title="暂无即将到期的提醒" />
+            ) : (
+              dashboard.upcomingReminders.slice(0, 4).map((reminder) => (
                 <Link
                   key={reminder.id}
+                  className="flex items-center gap-3 border-b border-border py-2.5 last:border-0 hover:bg-accent"
                   to="/reminders/$reminderId"
                   params={{ reminderId: reminder.reminderId }}
                 >
-                  <span className="report-reminder-icon" aria-hidden="true">
-                    <CalendarDays size={17} strokeWidth={1.8} />
+                  <CalendarDays
+                    aria-hidden="true"
+                    className="size-4 shrink-0 text-muted-foreground"
+                    strokeWidth={1.8}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">
+                      {reminder.title}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {reminder.assetName ?? '全局提醒'}
+                    </span>
                   </span>
-                  <span>
-                    <strong>{reminder.title}</strong>
-                    <small>{reminder.assetName ?? '全局提醒'}</small>
-                  </span>
-                  <time dateTime={reminder.dueAt}>
+                  <time
+                    className="tnum shrink-0 text-xs text-muted-foreground"
+                    dateTime={reminder.dueAt}
+                  >
                     {new Intl.DateTimeFormat('zh-CN', {
                       timeZone: reminder.timeZone,
                       month: 'short',
@@ -432,23 +549,23 @@ export function DashboardPage() {
                     }).format(new Date(reminder.dueAt))}
                   </time>
                 </Link>
-              ))}
-            </div>
-          )}
-        </article>
+              ))
+            )}
+          </CardContent>
+        </Card>
       </section>
 
       {dashboard.totalItemCount === 0 && (
-        <section className="report-empty-collection">
-          <Archive aria-hidden="true" size={28} strokeWidth={1.6} />
-          <div>
-            <h2>从第一件物品开始建立资产报表</h2>
-            <p>记录取得成本和状态后，净投入、日均成本与资产版图会自动生成。</p>
-          </div>
-          <Link className="report-primary-action" to="/assets/new">
-            添加第一件物品
-          </Link>
-        </section>
+        <EmptyState
+          icon={Archive}
+          title="从第一件物品开始建立资产报表"
+          description="记录取得成本和状态后，净投入、日均成本与资产版图会自动生成。"
+          action={
+            <Button asChild>
+              <Link to="/assets/new">添加第一件物品</Link>
+            </Button>
+          }
+        />
       )}
     </div>
   );
