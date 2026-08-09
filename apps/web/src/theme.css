@@ -1,198 +1,224 @@
-/* 物纪 · Chronicle — 档案 UI · Token 层
+/* 物纪 · Chronicle — Token 层
  *
- * 结构取自 shadcn/ui，气质是纸质档案：
- *   暖中性（所有灰都偏暖，不用纯灰）· 单一墨青强调 · 细线为主 · 4px 圆角
+ * 方向：深色玻璃卡片（参考 yantao.wiki）。
+ *   暗色为主 · 16px 圆角 · 大柔光阴影 · 半透明卡片 · 背景渐变晕染 · 多强调色
  *
  * 换气质只需要改本文件的变量，组件代码一行不动。
- * 亮色为主；暗色是同一套语义的暖调深色版本，不是简单反相。
+ * 亮色是同一套语义的浅色版本，不是简单反相。
  */
 
 /* 层级顺序：preflight(base) < 遗留样式 < 新组件(components/utilities)
- *
- * 必须在 @import 之前声明。遗留 CSS 通过 legacy.css 以 layer(legacy) 导入，
- * 这样它既压得住 Tailwind 的 preflight（旧页面继续正常显示），
- * 又压不过新组件的 utility（改造过的页面立即生效）。
+ * 必须在 @import 之前声明。遗留 CSS 通过 legacy.css 以 layer(legacy) 导入。
  * 全部页面改造完成后，legacy 层连同三个 CSS 文件一起删除。 */
 @layer theme, base, legacy, components, utilities;
 
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
-/* 主题由 ThemeToggle 写在 html[data-theme] 上，取值 system | light | dark。
- * 无属性（React 挂载前）等同 system。 */
-@custom-variant dark {
-  &:where([data-theme='dark'], [data-theme='dark'] *) {
+/* 主题写在 html[data-theme] 上，取值 system | light | dark。
+ * 暗色是基线：无属性（React 挂载前）也走暗色，避免闪白。 */
+@custom-variant light {
+  &:where([data-theme='light'], [data-theme='light'] *) {
     @slot;
   }
-  @media (prefers-color-scheme: dark) {
-    &:where(
-        :root:not([data-theme='light']):not([data-theme='dark']),
-        :root:not([data-theme='light']):not([data-theme='dark']) *
-      ) {
+  @media (prefers-color-scheme: light) {
+    &:where([data-theme='system'], [data-theme='system'] *) {
       @slot;
     }
   }
 }
 
-/* ── 亮色（主）─────────────────────────────────────────────── */
+/* ── 暗色（基线）───────────────────────────────────────────── */
 :root {
-  color-scheme: light;
-
-  --background: #fdfcfa; /* 象牙白，不是纯白 */
-  --foreground: #1c1a17; /* 墨黑带暖，不是 #000 */
-
-  --card: #ffffff;
-  --card-foreground: #1c1a17;
-  --popover: #ffffff;
-  --popover-foreground: #1c1a17;
-
-  --primary: #2f5d62; /* 墨青 · 全局唯一强调色 */
-  --primary-foreground: #fdfcfa;
-
-  --secondary: #f4f1ec;
-  --secondary-foreground: #3a362f;
-  --muted: #f4f1ec;
-  --muted-foreground: #6b655c;
-  --accent: #efebe4; /* hover 垫色 */
-  --accent-foreground: #1c1a17;
-
-  --success: #3f6b47;
-  --success-subtle: #eaf0ea;
-  --warning: #8f6015;
-  --warning-subtle: #f7f0e1;
-  --destructive: #a33a2e;
-  --destructive-foreground: #fdfcfa;
-  --destructive-subtle: #f7e9e6;
-
-  --border: #e5e0d8; /* 暖线 —— 档案感的关键一笔 */
-  --input: #dbd5ca; /* 输入框边框比分隔线深一档，保证可见 */
-  --ring: #2f5d62;
-
-  --radius: 4px;
-
-  /* 阴影只有两级，且极轻。档案界面靠线和留白分层，不靠浮起。 */
-  --shadow-paper: 0 1px 2px rgb(28 26 23 / 5%);
-  --shadow-raised: 0 4px 12px rgb(28 26 23 / 8%);
-
-  /* 图表序列：墨青单色阶，index 0 = 量级最小。
-   * 树图里面积已经编码量级、标签已经编码身份，颜色不再承担第三种含义，
-   * 所以用单色序列而不是分类色板 —— 既更贴档案气质，也免掉分类色板
-   * 为通过色盲全对分离度而必须拉高彩度的问题。
-   * 经 dataviz validator 校验：单色相、明度单调、相邻 ΔL ≥ 0.06、浅端对底色 2.26:1。 */
-  --chart-1: #82b5bb;
-  --chart-2: #5b9fa7;
-  --chart-3: #358891;
-  --chart-4: #1a7078;
-  --chart-5: #13575e;
-}
-
-/* ── 暗色 · 跟随系统 ───────────────────────────────────────── */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']):not([data-theme='dark']) {
-    color-scheme: dark;
-
-    --background: #1a1917; /* 暖深色，不是蓝黑 */
-    --foreground: #ede8e0;
-
-    --card: #232220;
-    --card-foreground: #ede8e0;
-    --popover: #232220;
-    --popover-foreground: #ede8e0;
-
-    --primary: #7fb3b8; /* 墨青在深底上提亮才够对比 */
-    --primary-foreground: #14201f;
-
-    --secondary: #2c2a27;
-    --secondary-foreground: #ede8e0;
-    --muted: #2c2a27;
-    --muted-foreground: #a39d93;
-    --accent: #33312d;
-    --accent-foreground: #ede8e0;
-
-    --success: #7fa98a;
-    --success-subtle: #232d26;
-    --warning: #d6a44e;
-    --warning-subtle: #2e2718;
-    --destructive: #d9705f;
-    --destructive-foreground: #1a1917;
-    --destructive-subtle: #2f211e;
-
-    --border: #35332f;
-    --input: #423f3a;
-    --ring: #7fb3b8;
-
-    --shadow-paper: 0 1px 2px rgb(0 0 0 / 30%);
-    --shadow-raised: 0 4px 12px rgb(0 0 0 / 40%);
-
-    /* 暗底上方向反过来：量级越大越亮。同色相、重新取阶，不是把亮色翻转。
-     * 校验：明度单调、相邻 ΔL ≥ 0.06、端点对 #232220 达 2.10:1。 */
-    --chart-1: #225c62;
-    --chart-2: #27757d;
-    --chart-3: #348f98;
-    --chart-4: #58a6af;
-    --chart-5: #83bdc3;
-  }
-}
-
-/* ── 暗色 · 手动指定（与上面同值，选择器不同不能合并）───────── */
-[data-theme='dark'] {
   color-scheme: dark;
 
-  --background: #1a1917;
-  --foreground: #ede8e0;
+  --background: #0b0f14;
+  --background-soft: #0f1621;
+  --foreground: #e5e7eb;
+  --heading: #f8fafc;
 
-  --card: #232220;
-  --card-foreground: #ede8e0;
-  --popover: #232220;
-  --popover-foreground: #ede8e0;
+  /* 卡片是半透明的，浮在背景渐变之上 */
+  --card: rgb(17 24 39 / 72%);
+  /* 需要不透明底的地方（图表 tooltip、树图缝隙）用这个 */
+  --card-solid: #111827;
+  --card-foreground: #e5e7eb;
+  --popover: #111827;
+  --popover-foreground: #e5e7eb;
 
-  --primary: #7fb3b8;
-  --primary-foreground: #14201f;
+  /* 填充用 blue-600，白字对比 5.1:1；文字/链接用更亮的 blue-500 */
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --link: #3b82f6;
 
-  --secondary: #2c2a27;
-  --secondary-foreground: #ede8e0;
-  --muted: #2c2a27;
-  --muted-foreground: #a39d93;
-  --accent: #33312d;
-  --accent-foreground: #ede8e0;
+  --secondary: #0f172a;
+  --secondary-foreground: #e5e7eb;
+  --muted: #0f172a;
+  --muted-foreground: #9ca3af;
+  --accent: rgb(148 163 184 / 10%);
+  --accent-foreground: #f8fafc;
 
-  --success: #7fa98a;
-  --success-subtle: #232d26;
-  --warning: #d6a44e;
-  --warning-subtle: #2e2718;
-  --destructive: #d9705f;
-  --destructive-foreground: #1a1917;
-  --destructive-subtle: #2f211e;
+  --success: #22c55e;
+  --success-subtle: rgb(34 197 94 / 12%);
+  --warning: #f59e0b;
+  --warning-subtle: rgb(245 158 11 / 12%);
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --destructive-subtle: rgb(239 68 68 / 12%);
+  --purple: #c084fc;
 
-  --border: #35332f;
-  --input: #423f3a;
-  --ring: #7fb3b8;
+  --border: #1f2937;
+  --border-soft: rgb(148 163 184 / 16%);
+  --input: #0b1220;
+  --ring: #3b82f6;
 
-  --shadow-paper: 0 1px 2px rgb(0 0 0 / 30%);
-  --shadow-raised: 0 4px 12px rgb(0 0 0 / 40%);
+  --radius: 16px;
+  --radius-sm: 10px;
 
-  --chart-1: #225c62;
-  --chart-2: #27757d;
-  --chart-3: #348f98;
-  --chart-4: #58a6af;
-  --chart-5: #83bdc3;
+  --shadow-paper: 0 8px 24px rgb(0 0 0 / 22%);
+  --shadow-raised: 0 24px 60px rgb(0 0 0 / 32%);
+
+  /* 背景晕染：左上偏蓝、右上偏绿，很淡 */
+  --wash-1: rgb(59 130 246 / 12%);
+  --wash-2: rgb(34 197 94 / 6%);
+
+  /* 图表色阶：蓝色单色相，index 0 = 量级最小（暗底上越大越亮）。
+   * 经 dataviz validator 校验：单色相、明度单调、相邻 ΔL ≥ 0.06、
+   * 端点对 #111827 达 2.07:1。 */
+  --chart-1: #184998;
+  --chart-2: #2f60b2;
+  --chart-3: #4678cc;
+  --chart-4: #5d91e7;
+  --chart-5: #7aabfb;
 }
 
-/* 手动指定亮色时压回 light，覆盖系统偏好 */
+/* ── 亮色 ─────────────────────────────────────────────────── */
 [data-theme='light'] {
   color-scheme: light;
+
+  --background: #f7f9fc;
+  --background-soft: #eef2f7;
+  --foreground: #0f172a;
+  --heading: #0b1220;
+
+  --card: rgb(255 255 255 / 78%);
+  --card-solid: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --link: #1d4ed8;
+
+  --secondary: #eef2f7;
+  --secondary-foreground: #0f172a;
+  --muted: #eef2f7;
+  --muted-foreground: #5b6675;
+  --accent: rgb(15 23 42 / 5%);
+  --accent-foreground: #0f172a;
+
+  /* 亮底上语义色要压暗才够 4.5:1 */
+  --success: #15803d;
+  --success-subtle: rgb(21 128 61 / 10%);
+  --warning: #b45309;
+  --warning-subtle: rgb(180 83 9 / 10%);
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --destructive-subtle: rgb(220 38 38 / 10%);
+  --purple: #7c3aed;
+
+  --border: #e2e8f0;
+  --border-soft: rgb(15 23 42 / 10%);
+  --input: #ffffff;
+  --ring: #2563eb;
+
+  --shadow-paper: 0 2px 8px rgb(15 23 42 / 6%);
+  --shadow-raised: 0 16px 40px rgb(15 23 42 / 10%);
+
+  --wash-1: rgb(59 130 246 / 8%);
+  --wash-2: rgb(34 197 94 / 5%);
+
+  /* 亮底上方向反过来：量级越大越深。端点对 #ffffff 达 2.32:1。 */
+  --chart-1: #7aabfb;
+  --chart-2: #6292e1;
+  --chart-3: #4a79c6;
+  --chart-4: #3461ac;
+  --chart-5: #1d4a93;
+}
+
+/* 跟随系统且系统为亮色时，套用同一组亮色值 */
+@media (prefers-color-scheme: light) {
+  [data-theme='system'] {
+    color-scheme: light;
+
+    --background: #f7f9fc;
+    --background-soft: #eef2f7;
+    --foreground: #0f172a;
+    --heading: #0b1220;
+
+    --card: rgb(255 255 255 / 78%);
+    --card-solid: #ffffff;
+    --card-foreground: #0f172a;
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --primary-foreground: #ffffff;
+    --link: #1d4ed8;
+
+    --secondary: #eef2f7;
+    --secondary-foreground: #0f172a;
+    --muted: #eef2f7;
+    --muted-foreground: #5b6675;
+    --accent: rgb(15 23 42 / 5%);
+    --accent-foreground: #0f172a;
+
+    --success: #15803d;
+    --success-subtle: rgb(21 128 61 / 10%);
+    --warning: #b45309;
+    --warning-subtle: rgb(180 83 9 / 10%);
+    --destructive: #dc2626;
+    --destructive-foreground: #ffffff;
+    --destructive-subtle: rgb(220 38 38 / 10%);
+    --purple: #7c3aed;
+
+    --border: #e2e8f0;
+    --border-soft: rgb(15 23 42 / 10%);
+    --input: #ffffff;
+    --ring: #2563eb;
+
+    --shadow-paper: 0 2px 8px rgb(15 23 42 / 6%);
+    --shadow-raised: 0 16px 40px rgb(15 23 42 / 10%);
+
+    --wash-1: rgb(59 130 246 / 8%);
+    --wash-2: rgb(34 197 94 / 5%);
+
+    --chart-1: #7aabfb;
+    --chart-2: #6292e1;
+    --chart-3: #4a79c6;
+    --chart-4: #3461ac;
+    --chart-5: #1d4a93;
+  }
 }
 
 /* ── 映射给 Tailwind ──────────────────────────────────────── */
 @theme inline {
   --color-background: var(--background);
+  --color-background-soft: var(--background-soft);
   --color-foreground: var(--foreground);
+  --color-heading: var(--heading);
   --color-card: var(--card);
+  --color-card-solid: var(--card-solid);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
+  --color-link: var(--link);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -206,19 +232,21 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive-subtle: var(--destructive-subtle);
+  --color-purple: var(--purple);
   --color-border: var(--border);
+  --color-border-soft: var(--border-soft);
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --radius-sm: calc(var(--radius) - 2px);
+  --radius-sm: var(--radius-sm);
   --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) + 2px);
+  --radius-lg: calc(var(--radius) + 4px);
 
   --shadow-paper: var(--shadow-paper);
   --shadow-raised: var(--shadow-raised);
 
-  /* 中文优先的系统字体栈。不引入 web font —— 档案感靠排版和留白建立，
-   * 不靠字体文件。CJK 衬线 subset 的成本不值得。 */
+  /* 不引入外部 web font：产品要求核心功能本地可用，
+   * 挂 CDN 字体会让离线环境下排版塌掉。系统栈里中文优先。 */
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB',
     'Noto Sans SC', 'Microsoft YaHei', sans-serif;
@@ -232,20 +260,26 @@
   }
 
   body {
-    background-color: var(--background);
+    /* 两层很淡的径向渐变压在底色上，卡片半透明才有东西可透 */
+    background:
+      radial-gradient(circle at top left, var(--wash-1), transparent 34%),
+      radial-gradient(circle at top right, var(--wash-2), transparent 28%),
+      var(--background);
+    background-attachment: fixed;
     color: var(--foreground);
     font-family: var(--font-sans);
     /* 中文行高给足；字距永远不用负值，中文负字距会糊成一团 */
     line-height: 1.7;
     letter-spacing: 0;
+    min-height: 100vh;
     -webkit-font-smoothing: antialiased;
   }
 
-  /* 标题行高收紧，但字距仍不为负 */
   h1,
   h2,
   h3,
   h4 {
+    color: var(--heading);
     line-height: 1.35;
     letter-spacing: 0;
   }
@@ -258,7 +292,7 @@
   }
 
   ::selection {
-    background-color: color-mix(in oklab, var(--primary) 22%, transparent);
+    background-color: color-mix(in oklab, var(--link) 28%, transparent);
   }
 
   :focus-visible {

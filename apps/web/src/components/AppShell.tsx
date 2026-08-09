@@ -27,15 +27,18 @@ interface AppShellProps extends PropsWithChildren {
   username: string;
 }
 
-/* 侧栏条目：左侧 2px 竖线作为选中标记，右侧圆角像一枚档案页签。
- * 所有条目都带透明左线，选中时只换颜色 —— 宽度不变，不会跳。 */
+/* 侧栏条目：选中态是一枚蓝色淡底胶囊，不再用档案页签那条竖线。
+ * 基础态带透明边框，这样选中时加边框不会让条目变宽。 */
 const navItem = cn(
-  'flex h-9 items-center gap-3 rounded-r-md border-l-2 border-transparent',
-  'pr-3 pl-2.5 text-sm text-muted-foreground transition-colors',
+  'flex h-10 items-center gap-3 rounded-sm border border-transparent px-3',
+  'text-sm text-muted-foreground transition duration-200',
   'hover:bg-accent hover:text-foreground',
   '[&_svg]:size-[18px] [&_svg]:shrink-0',
 );
-const navItemActive = cn(navItem, 'border-primary bg-accent font-medium text-primary');
+const navItemActive = cn(
+  navItem,
+  'border border-link/20 bg-link/10 font-medium text-link hover:bg-link/15 hover:text-link',
+);
 
 const primaryNav = [
   { icon: Gauge, key: 'nav.overview', to: '/' },
@@ -98,8 +101,8 @@ export function AppShell({ children, username }: AppShellProps) {
       {/* 桌面侧栏 */}
       <aside
         className={cn(
-          'hidden border-r border-border bg-muted/40 lg:flex',
-          'lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:gap-6 lg:py-5 lg:pr-3 lg:pl-3',
+          'hidden border-r border-border bg-background-soft/70 backdrop-blur-md lg:flex',
+          'lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:gap-6 lg:px-3 lg:py-5',
         )}
       >
         <Link className="flex items-center gap-2.5 px-0.5" to="/" aria-label={t('shell.brandAria')}>
@@ -134,11 +137,11 @@ export function AppShell({ children, username }: AppShellProps) {
         </nav>
 
         <div className="flex flex-col gap-0.5 border-t border-border pt-4">
-          <div className="flex h-9 items-center justify-between pr-1 pl-2.5">
+          <div className="flex h-9 items-center justify-between pr-1 pl-3">
             <span className="text-xs text-muted-foreground">{t('theme.label')}</span>
             <ThemeToggle />
           </div>
-          <div className="flex h-9 items-center justify-between pr-1 pl-2.5">
+          <div className="flex h-9 items-center justify-between pr-1 pl-3">
             <span className="text-xs text-muted-foreground">{t('locale.label')}</span>
             <Button variant="ghost" size="sm" type="button" onClick={toggleLocale}>
               {locale === 'zh-CN' ? t('locale.en') : t('locale.zh')}
@@ -160,7 +163,7 @@ export function AppShell({ children, username }: AppShellProps) {
               {logout.isPending ? t('auth.loggingOut') : t('auth.logout', { username })}
             </span>
           </button>
-          <p className="px-2.5 pt-2 text-xs text-muted-foreground">{t('shell.milestone')}</p>
+          <p className="px-3 pt-2 text-xs text-muted-foreground">{t('shell.milestone')}</p>
         </div>
       </aside>
 
@@ -199,10 +202,12 @@ export function AppShell({ children, username }: AppShellProps) {
             <Link
               key={to}
               className={cn(
-                'shrink-0 rounded-md px-3 py-1.5 text-sm whitespace-nowrap',
-                'text-muted-foreground transition-colors hover:bg-accent',
+                'shrink-0 rounded-full border border-transparent px-3 py-1.5 text-sm whitespace-nowrap',
+                'text-muted-foreground transition duration-200 hover:bg-accent',
               )}
-              activeProps={{ className: 'bg-accent font-medium text-primary' }}
+              activeProps={{
+                className: 'border-link/20 bg-link/10 font-medium text-link',
+              }}
               {...(to === '/' || to === '/assets'
                 ? { activeOptions: { exact: true } }
                 : {})}

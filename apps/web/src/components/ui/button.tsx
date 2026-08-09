@@ -8,8 +8,8 @@ import { cn } from '@thingcost/ui';
  * 没有阴影、没有 hover 位移 —— 只有颜色变化。 */
 const buttonVariants = cva(
   cn(
-    'inline-flex shrink-0 items-center justify-center gap-2 rounded-md',
-    'font-medium whitespace-nowrap transition-colors duration-150',
+    'inline-flex shrink-0 items-center justify-center gap-2 rounded-sm',
+    'font-medium whitespace-nowrap transition duration-200',
     'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
     'focus-visible:ring-offset-background',
     'disabled:pointer-events-none disabled:opacity-45',
@@ -18,17 +18,17 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        /* 主操作：实心墨青 */
-        default: 'bg-primary text-primary-foreground hover:bg-primary/88',
-        /* 次操作：白纸 + 暖边框，档案里最常见的一种 */
+        /* 主操作：实心蓝，白字对比 5.1:1 */
+        default: 'bg-primary text-primary-foreground shadow-paper hover:bg-primary-hover',
+        /* 次操作：玻璃底 + 描边，hover 时边框转亮 */
         secondary:
-          'border border-input bg-card text-foreground hover:bg-accent hover:text-accent-foreground',
+          'border border-border bg-card backdrop-blur-md text-foreground hover:border-ring/55 hover:bg-accent',
         /* 无边框，用于工具栏和图标 */
-        ghost: 'text-foreground hover:bg-accent hover:text-accent-foreground',
+        ghost: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
         /* 破坏性操作永远显式，不用 ghost 藏起来 */
         destructive:
-          'bg-destructive text-destructive-foreground hover:bg-destructive/88',
-        link: 'text-primary underline-offset-4 hover:underline',
+          'bg-destructive text-destructive-foreground shadow-paper hover:brightness-110',
+        link: 'text-link underline-offset-4 hover:underline',
       },
       size: {
         sm: 'h-8 px-3 text-xs',

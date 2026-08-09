@@ -26,12 +26,19 @@ export function PageHeader({
         className,
       )}
     >
-      <div className="min-w-0 space-y-1">
+      <div className="min-w-0 space-y-2">
         {eyebrow ? (
-          /* 中文眉标用正字距（永远不用负值），小字号 + 弱色 */
-          <p className="text-xs tracking-[0.08em] text-muted-foreground">{eyebrow}</p>
+          /* 胶囊眉标：淡蓝底 + 亮蓝字。中文用正字距，永远不用负值 */
+          <p
+            className={cn(
+              'inline-flex items-center gap-2 rounded-full border border-link/20',
+              'bg-link/10 px-3 py-1 text-xs tracking-[0.08em] text-link',
+            )}
+          >
+            {eyebrow}
+          </p>
         ) : null}
-        <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
+        <h1 className="text-2xl font-semibold text-heading">{title}</h1>
         {description ? (
           <p className="max-w-prose text-sm text-muted-foreground">{description}</p>
         ) : null}

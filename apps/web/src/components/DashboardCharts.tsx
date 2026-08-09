@@ -25,7 +25,7 @@ interface ChartPalette {
 const chartFont =
   'ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", sans-serif';
 
-const rampFallback = ['#82b5bb', '#5b9fa7', '#358891', '#1a7078', '#13575e'];
+const rampFallback = ['#184998', '#2f60b2', '#4678cc', '#5d91e7', '#7aabfb'];
 
 /* 只有一个来源：theme.css 的 token。主题切换由下面的 MutationObserver 驱动，
  * 不再按路由分叉出第二套调色板。 */
@@ -35,16 +35,18 @@ function readChartPalette(): ChartPalette {
     styles.getPropertyValue(name).trim() || fallback;
 
   return {
-    ink: read('--foreground', '#1c1a17'),
-    line: read('--border', '#e5e0d8'),
-    muted: read('--muted-foreground', '#6b655c'),
-    negative: read('--destructive', '#a33a2e'),
-    positive: read('--success', '#3f6b47'),
-    primary: read('--primary', '#2f5d62'),
+    ink: read('--foreground', '#e5e7eb'),
+    line: read('--border', '#1f2937'),
+    muted: read('--muted-foreground', '#9ca3af'),
+    negative: read('--destructive', '#ef4444'),
+    positive: read('--success', '#22c55e'),
+    /* 线条用更亮的 --link 而不是填充色 --primary：细线在深底上要够亮才看得清 */
+    primary: read('--link', '#3b82f6'),
     ramp: rampFallback.map((fallback, index) =>
       read(`--chart-${String(index + 1)}`, fallback),
     ),
-    surface: read('--card', '#ffffff'),
+    /* 卡片底是半透明的，图表 tooltip 和树图缝隙必须用不透明的那个 */
+    surface: read('--card-solid', '#111827'),
   };
 }
 
@@ -62,10 +64,10 @@ function relativeLuminance(color: string): number | null {
 /* 树图色阶跨度大，标签不能固定用白色 —— 按每格底色挑对比度更高的一侧。 */
 function readableInk(background: string): string {
   const luminance = relativeLuminance(background);
-  if (luminance === null) return '#fdfcfa';
+  if (luminance === null) return '#f8fafc';
   const onLight = (luminance + 0.05) / 0.05;
   const onDark = 1.05 / (luminance + 0.05);
-  return onLight >= onDark ? '#1c1a17' : '#fdfcfa';
+  return onLight >= onDark ? '#0b1220' : '#f8fafc';
 }
 
 /* 量级 → 色阶。净投入分布通常长尾，用 sqrt 让小额分类之间也拉得开。 */
@@ -225,7 +227,8 @@ export function PortfolioTrendChart({
   }[metric];
   const option: EChartsCoreOption = {
     animationDuration: 180,
-    grid: { top: 20, right: 18, bottom: 32, left: 64 },
+    /* containLabel 让 ECharts 自己给坐标轴文字留位置，不用手写 left 边距 */
+    grid: { top: 16, right: 16, bottom: 8, left: 8, containLabel: true },
     tooltip: {
       trigger: 'axis',
       valueFormatter: (value: unknown) =>
@@ -233,6 +236,7 @@ export function PortfolioTrendChart({
       /* 十字准星：折线图默认带悬停层 */
       axisPointer: {
         type: 'line',
+        snap: true,
         lineStyle: { color: palette.muted, type: 'dashed', width: 1 },
       },
       ...chartTooltip(palette),
@@ -249,17 +253,32 @@ export function PortfolioTrendChart({
         /* 单序列 —— 图注由 figcaption 承担，不需要图例，颜色也不承担身份。
          * 不平滑：折线是账目，不该被插值美化。 */
         smooth: false,
-        showSymbol: trend.length <= 30,
+        /* 点多了就别铺满圆点；悬停时准星和 tooltip 已经足够定位 */
+        showSymbol: trend.length <= 12,
         symbol: 'circle',
-        symbolSize: 8,
+        symbolSize: 7,
+        sampling: 'lttb',
         lineStyle: { color: palette.primary, width: 2 },
         itemStyle: {
           color: palette.primary,
-          /* 与底色同色的描边，让重叠的点互相分开 */
           borderColor: palette.surface,
           borderWidth: 2,
         },
-        areaStyle: { color: withAlpha(palette.primary, '14') },
+        emphasis: { scale: 1.4 },
+        /* 竖向渐变收边，比一层平铺的半透明色干净 */
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: withAlpha(palette.primary, '26') },
+              { offset: 1, color: withAlpha(palette.primary, '00') },
+            ],
+          },
+        },
         data: trend.map((point) => majorFromMinor(metadata.value(point), currency)),
       },
     ],
@@ -267,7 +286,7 @@ export function PortfolioTrendChart({
   const ref = useChart(option);
   return (
     <div
-      className="chart-canvas"
+      className="h-[260px] w-full sm:h-[300px]"
       ref={ref}
       role="img"
       aria-label={`${metadata.name}趋势图`}
@@ -374,7 +393,7 @@ export function AssetMapChart({
   const ref = useChart(option);
   return (
     <div
-      className="chart-canvas"
+      className="h-[280px] w-full sm:h-[320px]"
       ref={ref}
       role="img"
       aria-label="按分类展示的资产净投入版图；右侧排行提供精确数据"

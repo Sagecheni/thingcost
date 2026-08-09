@@ -2,19 +2,24 @@ import type { ComponentProps } from 'react';
 
 import { cn } from '@thingcost/ui';
 
-/* 档案风卡片：默认平铺在纸面上，只有一条暖边框。
- * elevated 留给真正需要抬起的场景（弹层、拖拽），日常面板一律不用阴影。 */
+/* 玻璃卡片：半透明底 + 背景模糊，浮在页面的渐变晕染之上。
+ *
+ * interactive 只给可点击的卡片（整块是链接的那种）——
+ * 静态面板不做 hover 上浮，否则会暗示它可以点。 */
 export function Card({
   className,
   elevated = false,
+  interactive = false,
   ...props
-}: ComponentProps<'div'> & { elevated?: boolean }) {
+}: ComponentProps<'div'> & { elevated?: boolean; interactive?: boolean }) {
   return (
     <div
       data-slot="card"
       className={cn(
-        'rounded-md border border-border bg-card text-card-foreground',
-        elevated && 'shadow-raised',
+        'rounded-md border border-border bg-card text-card-foreground backdrop-blur-md',
+        elevated ? 'shadow-raised' : 'shadow-paper',
+        interactive &&
+          'transition duration-200 hover:-translate-y-0.5 hover:border-ring/55 hover:shadow-raised',
         className,
       )}
       {...props}
