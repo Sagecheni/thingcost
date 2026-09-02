@@ -10,7 +10,7 @@
     "migrate": "node dist/cli/migrate.js",
     "reset-password": "node dist/cli/reset-password.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --no-file-parallelism"
   },
   "dependencies": {
     "@fastify/cookie": "11.1.2",

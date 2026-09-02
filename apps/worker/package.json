@@ -8,7 +8,7 @@
     "build": "tsup",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --no-file-parallelism --passWithNoTests"
   },
   "dependencies": {
     "@thingcost/config": "workspace:*",
