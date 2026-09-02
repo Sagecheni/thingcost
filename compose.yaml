@@ -24,11 +24,12 @@ x-app-environment: &app-environment
   REMINDER_DELIVERY_MAX_ATTEMPTS: ${REMINDER_DELIVERY_MAX_ATTEMPTS:-4}
   REMINDER_CLAIM_LIMIT: ${REMINDER_CLAIM_LIMIT:-20}
 
-x-app-security: &app-security
+x-app-runtime: &app-runtime
   init: true
   restart: unless-stopped
   security_opt:
     - no-new-privileges:true
+  image: ${CHRONICLE_IMAGE:-chronicle:local}
 
 services:
   postgres:
@@ -49,8 +50,6 @@ services:
       - no-new-privileges:true
 
   migrate:
-    build:
-      context: .
     image: ${CHRONICLE_IMAGE:-chronicle:local}
     command: ['node', 'api/dist/cli/migrate.js']
     environment: *app-environment
@@ -62,8 +61,7 @@ services:
       - no-new-privileges:true
 
   app:
-    <<: *app-security
-    image: ${CHRONICLE_IMAGE:-chronicle:local}
+    <<: *app-runtime
     environment: *app-environment
     ports:
       - '${CHRONICLE_PORT:-3000}:3000'
@@ -89,8 +87,7 @@ services:
       start_period: 10s
 
   worker:
-    <<: *app-security
-    image: ${CHRONICLE_IMAGE:-chronicle:local}
+    <<: *app-runtime
     command: ['node', 'worker/dist/main.js']
     environment: *app-environment
     depends_on:

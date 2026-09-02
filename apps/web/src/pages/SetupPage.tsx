@@ -53,8 +53,8 @@ export function SetupPage() {
       return;
     }
 
-    if (password.length < 12) {
-      setLocalError('密码至少需要 12 个字符');
+    if (!password) {
+      setLocalError('密码不能为空');
       return;
     }
 
@@ -114,13 +114,12 @@ export function SetupPage() {
               required
             />
           </FormField>
-          <FormField label="管理员密码" hint="至少 12 个字符；物纪不提供邮件找回。">
+          <FormField label="管理员密码" hint="请妥善保管；物纪不提供邮件找回。">
             <TextInput
               autoComplete="new-password"
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              minLength={12}
               required
             />
           </FormField>
@@ -130,7 +129,6 @@ export function SetupPage() {
               type="password"
               value={confirmation}
               onChange={(event) => setConfirmation(event.target.value)}
-              minLength={12}
               required
             />
           </FormField>

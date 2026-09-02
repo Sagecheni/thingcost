@@ -7,8 +7,8 @@ import { hashPassword } from '../services/session.js';
 
 const newPassword = process.env.CHRONICLE_NEW_PASSWORD;
 
-if (!newPassword || newPassword.length < 12) {
-  throw new Error('CHRONICLE_NEW_PASSWORD must contain at least 12 characters.');
+if (!newPassword) {
+  throw new Error('CHRONICLE_NEW_PASSWORD must not be empty.');
 }
 
 const config = loadRuntimeConfig();

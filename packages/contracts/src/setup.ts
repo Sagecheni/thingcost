@@ -8,7 +8,7 @@ export const setupStatusSchema = z.object({
 
 export const initializeApplicationSchema = z.object({
   username: z.string().trim().min(3).max(64),
-  password: z.string().min(12).max(256),
+  password: z.string().min(1).max(256),
   timeZone: z.string().trim().min(1).max(100).default('Asia/Shanghai'),
   baseCurrency: currencyCodeSchema.default('CNY'),
 });
