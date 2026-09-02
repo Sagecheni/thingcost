@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">存根印记</title>
+  <desc id="desc">两枚对角咬合的档案角围住一条生命周期轨迹，并以存根骑缝和朱红校注收尾。</desc>
+  <defs>
+    <clipPath id="stub">
+      <path d="M146 132H878V622C828 622 828 690 878 690V892H146V690C196 690 196 622 146 622Z" />
+    </clipPath>
+  </defs>
+  <path
+    fill="#FAF8F1"
+    d="M146 132H878V622C828 622 828 690 878 690V892H146V690C196 690 196 622 146 622Z"
+  />
+  <g clip-path="url(#stub)">
+    <path fill="#12324E" d="M146 132H760V208H222V562H146Z" />
+    <path fill="#12324E" d="M878 892H264V816H802V462H878Z" />
+    <path
+      fill="#12324E"
+      d="M276 435H388V341H558V479H676V521H516V383H430V477H276Z"
+    />
+    <path fill="#B1372C" d="M692 485L754 427L784 457L722 515Z" />
+    <path
+      fill="#12324E"
+      d="M188 641H230V671H188ZM260 641H302V671H260ZM332 641H374V671H332ZM404 641H446V671H404ZM476 641H518V671H476ZM548 641H590V671H548ZM620 641H662V671H620ZM692 641H734V671H692ZM764 641H836V671H764Z"
+    />
+  </g>
+</svg>

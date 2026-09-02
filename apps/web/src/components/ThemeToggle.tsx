@@ -1,16 +1,15 @@
 import { Monitor, Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { useI18n } from '../lib/i18n.js';
 import { Button } from './ui/button.js';
 
 const themes = ['system', 'light', 'dark'] as const;
 type Theme = (typeof themes)[number];
 
 const themeMetadata = {
-  system: { Icon: Monitor, key: 'theme.system' },
-  light: { Icon: Sun, key: 'theme.light' },
-  dark: { Icon: Moon, key: 'theme.dark' },
+  system: { Icon: Monitor, label: '跟随系统' },
+  light: { Icon: Sun, label: '浅色主题' },
+  dark: { Icon: Moon, label: '深色主题' },
 } as const;
 
 function storedTheme(): Theme {
@@ -18,25 +17,24 @@ function storedTheme(): Theme {
   return themes.includes(value as Theme) ? (value as Theme) : 'system';
 }
 
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string }) {
   const [theme, setTheme] = useState<Theme>(storedTheme);
-  const { t } = useI18n();
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem('chronicle-theme', theme);
   }, [theme]);
 
-  const { Icon, key } = themeMetadata[theme];
-  const label = t(key);
+  const { Icon, label } = themeMetadata[theme];
 
   return (
     <Button
       variant="ghost"
       size="icon-sm"
       type="button"
+      className={className}
       title={label}
-      aria-label={`${label}，${t('theme.switch')}`}
+      aria-label={`${label}，点击切换主题`}
       onClick={() => {
         const index = themes.indexOf(theme);
         setTheme(themes[(index + 1) % themes.length] ?? 'system');

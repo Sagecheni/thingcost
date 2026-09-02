@@ -4,30 +4,30 @@ import type { ComponentProps } from 'react';
 
 import { cn } from '@thingcost/ui';
 
-/* 档案风按钮：纸面上的一块墨，不浮起。
- * 没有阴影、没有 hover 位移 —— 只有颜色变化。 */
+/* 按钮是盖在纸上的一块墨，不浮起。
+ * 直角由 theme.css 的 [data-slot='button'] 提供；这里没有阴影、
+ * 没有 hover 位移 —— 只有颜色变化。
+ * 焦点环与填写栏同一语法：2px 直角外描边（theme.css 全局 :focus-visible），
+ * 不用圆角时代留下的 offset 白圈。 */
 const buttonVariants = cva(
   cn(
-    'inline-flex shrink-0 items-center justify-center gap-2 rounded-sm',
-    'font-medium whitespace-nowrap transition duration-200',
-    'outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-    'focus-visible:ring-offset-background',
+    'inline-flex shrink-0 items-center justify-center gap-2',
+    'font-medium whitespace-nowrap transition duration-150',
     'disabled:pointer-events-none disabled:opacity-45',
     '[&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:pointer-events-none',
   ),
   {
     variants: {
       variant: {
-        /* 主操作：实心蓝，白字对比 5.1:1 */
-        default: 'bg-primary text-primary-foreground shadow-paper hover:bg-primary-hover',
-        /* 次操作：玻璃底 + 描边，hover 时边框转亮 */
+        /* 主操作：实心墨块 */
+        default: 'bg-primary text-primary-foreground hover:bg-primary-hover',
+        /* 次操作：纸底 + 描边，hover 时边框转深 */
         secondary:
-          'border border-border bg-card backdrop-blur-md text-foreground hover:border-ring/55 hover:bg-accent',
+          'border border-border bg-card text-foreground hover:border-border-strong hover:bg-accent',
         /* 无边框，用于工具栏和图标 */
         ghost: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
         /* 破坏性操作永远显式，不用 ghost 藏起来 */
-        destructive:
-          'bg-destructive text-destructive-foreground shadow-paper hover:brightness-110',
+        destructive: 'bg-destructive text-destructive-foreground hover:brightness-110',
         link: 'text-link underline-offset-4 hover:underline',
       },
       size: {

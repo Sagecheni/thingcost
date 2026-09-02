@@ -14,16 +14,23 @@ export type WebhookChannelConfig = { url: string; secret?: string };
 export type WecomChannelConfig = { webhookUrl: string };
 export type ServerchanChannelConfig = { sendKey: string };
 export type PushplusChannelConfig = { token: string; topic?: string };
+export type BarkChannelConfig = {
+  serverUrl: string;
+  deviceKey: string;
+  group?: string;
+  sound?: string;
+};
 export type ProviderChannelConfig =
   | TelegramChannelConfig
   | WebhookChannelConfig
   | WecomChannelConfig
   | ServerchanChannelConfig
-  | PushplusChannelConfig;
+  | PushplusChannelConfig
+  | BarkChannelConfig;
 
 export interface ResolvedChannel {
   key: string;
-  provider: 'telegram' | 'webhook' | 'wecom' | 'serverchan' | 'pushplus';
+  provider: 'telegram' | 'webhook' | 'wecom' | 'serverchan' | 'pushplus' | 'bark';
   name: string;
   enabled: boolean;
   isDefault: boolean;
@@ -51,6 +58,11 @@ function summaryForConfiguration(
   if (provider === 'pushplus') {
     const pushplus = configuration as PushplusChannelConfig;
     return `PushPlus · …${pushplus.token.slice(-4)}${pushplus.topic ? ` · ${pushplus.topic}` : ''}`;
+  }
+  if (provider === 'bark') {
+    const bark = configuration as BarkChannelConfig;
+    const url = new URL(bark.serverUrl);
+    return `Bark · ${url.host} · …${bark.deviceKey.slice(-4)}${bark.group ? ` · ${bark.group}` : ''}`;
   }
   const url = new URL((configuration as WebhookChannelConfig).url);
   return `Webhook · ${url.origin}${url.pathname}`;
@@ -183,7 +195,14 @@ export async function createNotificationChannel(
           ? { sendKey: input.sendKey }
           : input.provider === 'pushplus'
             ? { token: input.token, ...(input.topic ? { topic: input.topic } : {}) }
-            : { url: input.url, ...(input.secret ? { secret: input.secret } : {}) };
+            : input.provider === 'bark'
+              ? {
+                  serverUrl: input.serverUrl.replace(/\/+$/u, ''),
+                  deviceKey: input.deviceKey,
+                  ...(input.group ? { group: input.group } : {}),
+                  ...(input.sound ? { sound: input.sound } : {}),
+                }
+              : { url: input.url, ...(input.secret ? { secret: input.secret } : {}) };
   const encrypted = encryptSecret(
     configuration,
     config.APP_MASTER_KEY,
@@ -266,16 +285,36 @@ export async function updateNotificationChannel(
                     }
                   : {}),
               }
-            : {
-                url: input.url ?? (oldConfiguration as WebhookChannelConfig).url,
-                ...(input.secret !== undefined
-                  ? input.secret
-                    ? { secret: input.secret }
-                    : {}
-                  : (oldConfiguration as WebhookChannelConfig).secret
-                    ? { secret: (oldConfiguration as WebhookChannelConfig).secret }
+            : row.provider === 'bark'
+              ? {
+                  serverUrl: (
+                    input.serverUrl ?? (oldConfiguration as BarkChannelConfig).serverUrl
+                  ).replace(/\/+$/u, ''),
+                  deviceKey:
+                    input.deviceKey ?? (oldConfiguration as BarkChannelConfig).deviceKey,
+                  ...((input.group ?? (oldConfiguration as BarkChannelConfig).group)
+                    ? {
+                        group:
+                          input.group ?? (oldConfiguration as BarkChannelConfig).group,
+                      }
                     : {}),
-              };
+                  ...((input.sound ?? (oldConfiguration as BarkChannelConfig).sound)
+                    ? {
+                        sound:
+                          input.sound ?? (oldConfiguration as BarkChannelConfig).sound,
+                      }
+                    : {}),
+                }
+              : {
+                  url: input.url ?? (oldConfiguration as WebhookChannelConfig).url,
+                  ...(input.secret !== undefined
+                    ? input.secret
+                      ? { secret: input.secret }
+                      : {}
+                    : (oldConfiguration as WebhookChannelConfig).secret
+                      ? { secret: (oldConfiguration as WebhookChannelConfig).secret }
+                      : {}),
+                };
   const encrypted = encryptSecret(
     configuration,
     config.APP_MASTER_KEY,

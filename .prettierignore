@@ -5,3 +5,5 @@ pnpm-lock.yaml
 **/routeTree.gen.ts
 .pi
 skills
+.pnpm-store
+.impeccable

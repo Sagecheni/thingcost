@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, Calculator, Plus, ReceiptText, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 
 import type {
   CreatePurchaseOrderInput,
@@ -10,8 +10,24 @@ import type {
 import { allocateOrder } from '@thingcost/domain';
 
 import { ApiClientError, api } from '../lib/api.js';
+import {
+  currencyLabel,
+  supportedCurrencies,
+  useBaseCurrency,
+} from '../lib/application-settings.js';
 import { formatMinorCurrency, localToday, majorToMinor } from '../lib/format.js';
+import { markFresh } from '../lib/fresh-marks.js';
 import { queryKeys } from '../lib/query-keys.js';
+import { Button } from '../components/ui/button.js';
+import {
+  FormError,
+  FormField,
+  FormGrid,
+  Panel,
+  SelectInput,
+  TextArea,
+  TextInput,
+} from '../components/ui/form.js';
 
 interface DraftOrderItem {
   key: number;
@@ -48,6 +64,7 @@ function moneyMinor(value: string, currency: string, blankAsZero = false): bigin
 export function OrderCreatePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const baseCurrency = useBaseCurrency();
   const categoriesQuery = useQuery({
     queryKey: queryKeys.categories,
     queryFn: api.categories,
@@ -62,7 +79,7 @@ export function OrderCreatePage() {
   const [merchant, setMerchant] = useState('');
   const [orderNumber, setOrderNumber] = useState('');
   const [orderedOn, setOrderedOn] = useState(localToday());
-  const [currency, setCurrency] = useState('CNY');
+  const [currency, setCurrency] = useState(baseCurrency);
   const [exchangeRate, setExchangeRate] = useState('1');
   const [exchangeRateSource, setExchangeRateSource] = useState<'manual' | 'frankfurter'>(
     'manual',
@@ -78,6 +95,10 @@ export function OrderCreatePage() {
     useState<OrderAllocationMethod>('proportional');
   const [items, setItems] = useState<DraftOrderItem[]>([emptyItem(1), emptyItem(2)]);
   const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCurrency((current) => (current === 'CNY' ? baseCurrency : current));
+  }, [baseCurrency]);
 
   const allocationPreview = useMemo(() => {
     const listed = items.map((item) => moneyMinor(item.listedPrice, currency));
@@ -116,7 +137,7 @@ export function OrderCreatePage() {
   }, [allocationMethod, currency, discount, fee, items, shipping, tax]);
 
   const quoteExchangeRate = useMutation({
-    mutationFn: () => api.exchangeRateQuote(currency, 'CNY', orderedOn),
+    mutationFn: () => api.exchangeRateQuote(currency, baseCurrency, orderedOn),
     onSuccess: (quote) => {
       setExchangeRate(quote.rate);
       setExchangeRateSource('frankfurter');
@@ -130,6 +151,7 @@ export function OrderCreatePage() {
   const createOrder = useMutation({
     mutationFn: api.createOrder,
     onSuccess: async (created) => {
+      markFresh(created.id);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.orders }),
         queryClient.invalidateQueries({ queryKey: queryKeys.assetLists }),
@@ -150,7 +172,7 @@ export function OrderCreatePage() {
     );
   }
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
 
@@ -174,7 +196,7 @@ export function OrderCreatePage() {
       shippingMinor: moneyMinor(shipping, currency, true)?.toString() ?? '0',
       taxMinor: moneyMinor(tax, currency, true)?.toString() ?? '0',
       feeMinor: moneyMinor(fee, currency, true)?.toString() ?? '0',
-      ...(currency !== 'CNY'
+      ...(currency !== baseCurrency
         ? {
             exchangeRate,
             exchangeRateSource,
@@ -205,99 +227,93 @@ export function OrderCreatePage() {
   }
 
   return (
-    <>
-      <Link className="back-link" to="/orders">
-        <ArrowLeft size={16} /> 返回订单
-      </Link>
-      <header className="topbar page-topbar order-create-heading">
-        <div>
-          <p className="eyebrow">Order mode</p>
-          <h1>录入多商品订单</h1>
-          <p className="muted-copy">
-            提交后会一次创建物品、取得资金事件和可追溯的分摊明细。
-          </p>
-        </div>
+    <div className="mx-auto flex max-w-6xl flex-col gap-5">
+      <header className="flex flex-col gap-2 border-b border-border pb-5">
+        <Link
+          className="inline-flex w-fit items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          to="/orders"
+        >
+          <ArrowLeft aria-hidden="true" className="size-4" /> 返回订单
+        </Link>
+        <p data-slot="ledger-label">Order mode</p>
+        <h1 className="text-2xl font-semibold text-heading">录入多商品订单</h1>
+        <p className="text-sm text-muted-foreground">
+          提交后会一次创建物品、取得资金事件和可追溯的分摊明细。
+        </p>
       </header>
 
-      <form className="order-create-layout" onSubmit={submit}>
-        <div className="order-form-main">
-          <section className="form-card order-form-card">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Receipt</p>
-                <h2>订单信息</h2>
-              </div>
-              <ReceiptText size={20} />
-            </div>
-            <div className="form-grid">
-              <label>
-                商家
-                <input
+      <form className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]" onSubmit={submit}>
+        <div className="flex min-w-0 flex-col gap-4">
+          <Panel eyebrow="Receipt" title="订单信息">
+            <FormGrid>
+              <FormField label="商家">
+                <TextInput
                   value={merchant}
                   onChange={(event) => setMerchant(event.target.value)}
                 />
-              </label>
-              <label>
-                订单号
-                <input
+              </FormField>
+              <FormField label="订单号">
+                <TextInput
                   value={orderNumber}
                   onChange={(event) => setOrderNumber(event.target.value)}
                 />
-              </label>
-              <label>
-                下单日期
-                <input
+              </FormField>
+              <FormField label="下单日期">
+                <TextInput
                   type="date"
                   required
                   max={localToday()}
                   value={orderedOn}
                   onChange={(event) => setOrderedOn(event.target.value)}
                 />
-              </label>
-              <label>
-                币种
-                <select
+              </FormField>
+              <FormField label="币种">
+                <SelectInput
                   value={currency}
                   onChange={(event) => {
                     setCurrency(event.target.value);
-                    setExchangeRate(event.target.value === 'CNY' ? '1' : '');
+                    setExchangeRate(event.target.value === baseCurrency ? '1' : '');
                     setExchangeRateSource('manual');
                     setExchangeRateFallback(false);
                   }}
                 >
-                  <option value="CNY">CNY · 人民币</option>
-                  <option value="USD">USD · 美元</option>
-                  <option value="EUR">EUR · 欧元</option>
-                  <option value="JPY">JPY · 日元</option>
-                  <option value="HKD">HKD · 港币</option>
-                </select>
-              </label>
-              {currency !== 'CNY' && (
-                <label>
-                  锁定汇率（1 {currency} = ? CNY）
-                  <input
-                    inputMode="decimal"
-                    value={exchangeRate}
-                    onChange={(event) => {
-                      setExchangeRate(event.target.value);
-                      setExchangeRateSource('manual');
-                      setExchangeRateFallback(false);
-                    }}
-                    required
-                  />
-                  <button
-                    className="secondary-action"
-                    type="button"
-                    disabled={quoteExchangeRate.isPending}
-                    onClick={() => quoteExchangeRate.mutate()}
-                  >
-                    {quoteExchangeRate.isPending ? '获取中…' : '填入历史参考汇率'}
-                  </button>
-                </label>
-              )}
-              <label>
-                分摊方式
-                <select
+                  {[baseCurrency, ...supportedCurrencies]
+                    .filter((value, index, all) => all.indexOf(value) === index)
+                    .map((value) => (
+                      <option value={value} key={value}>
+                        {currencyLabel(value)}
+                      </option>
+                    ))}
+                </SelectInput>
+              </FormField>
+              {currency !== baseCurrency ? (
+                <>
+                  <FormField label={`锁定汇率（1 ${currency} = ? ${baseCurrency}）`}>
+                    <TextInput
+                      inputMode="decimal"
+                      value={exchangeRate}
+                      onChange={(event) => {
+                        setExchangeRate(event.target.value);
+                        setExchangeRateSource('manual');
+                        setExchangeRateFallback(false);
+                      }}
+                      required
+                    />
+                  </FormField>
+                  <div className="flex items-end">
+                    <Button
+                      variant="secondary"
+                      type="button"
+                      disabled={quoteExchangeRate.isPending}
+                      onClick={() => quoteExchangeRate.mutate()}
+                    >
+                      {quoteExchangeRate.isPending ? '获取中…' : '填入历史参考汇率'}
+                    </Button>
+                  </div>
+                </>
+              ) : null}
+              <FormField label="分摊方式">
+                <SelectInput
                   value={allocationMethod}
                   onChange={(event) =>
                     setAllocationMethod(event.target.value as OrderAllocationMethod)
@@ -305,78 +321,81 @@ export function OrderCreatePage() {
                 >
                   <option value="proportional">按商品原价比例</option>
                   <option value="manual">手工指定每件实付</option>
-                </select>
-              </label>
-            </div>
-            <div className="form-grid order-adjustment-grid">
-              <label>
-                订单优惠（{currency}）
-                <input
+                </SelectInput>
+              </FormField>
+            </FormGrid>
+
+            <FormGrid className="lg:grid-cols-4">
+              <FormField label={`订单优惠（${currency}）`}>
+                <TextInput
                   inputMode="decimal"
                   placeholder="0.00"
                   value={discount}
                   onChange={(event) => setDiscount(event.target.value)}
                 />
-              </label>
-              <label>
-                运费（{currency}）
-                <input
+              </FormField>
+              <FormField label={`运费（${currency}）`}>
+                <TextInput
                   inputMode="decimal"
                   placeholder="0.00"
                   value={shipping}
                   onChange={(event) => setShipping(event.target.value)}
                 />
-              </label>
-              <label>
-                税费（{currency}）
-                <input
+              </FormField>
+              <FormField label={`税费（${currency}）`}>
+                <TextInput
                   inputMode="decimal"
                   placeholder="0.00"
                   value={tax}
                   onChange={(event) => setTax(event.target.value)}
                 />
-              </label>
-              <label>
-                其他费用（{currency}）
-                <input
+              </FormField>
+              <FormField label={`其他费用（${currency}）`}>
+                <TextInput
                   inputMode="decimal"
                   placeholder="0.00"
                   value={fee}
                   onChange={(event) => setFee(event.target.value)}
                 />
-              </label>
-            </div>
-            <label>
-              订单备注
-              <textarea value={note} onChange={(event) => setNote(event.target.value)} />
-            </label>
-          </section>
+              </FormField>
+            </FormGrid>
 
-          <section className="form-card order-form-card">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Line items</p>
-                <h2>订单商品</h2>
-              </div>
-              <button
-                className="secondary-action"
+            <FormField label="订单备注">
+              <TextArea
+                rows={2}
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+              />
+            </FormField>
+          </Panel>
+
+          <Panel
+            eyebrow="Line items"
+            title="订单商品"
+            action={
+              <Button
+                variant="secondary"
+                size="sm"
                 type="button"
                 onClick={() =>
                   setItems((current) => [...current, emptyItem(nextItemKey++)])
                 }
               >
-                <Plus size={16} /> 添加一行
-              </button>
-            </div>
-
-            <div className="order-line-editor">
+                <Plus aria-hidden="true" /> 添加一行
+              </Button>
+            }
+          >
+            <div className="flex flex-col gap-4">
               {items.map((item, index) => (
-                <article key={item.key}>
-                  <div className="order-line-heading">
-                    <strong>物品 {index + 1}</strong>
-                    {items.length > 1 && (
+                <article
+                  className="space-y-3 border-t border-dashed border-border pt-4 first:border-0 first:pt-0"
+                  key={item.key}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <strong data-slot="ledger-label">物品 {index + 1}</strong>
+                    {items.length > 1 ? (
                       <button
-                        className="icon-action danger-action"
+                        className="flex size-7 items-center justify-center border border-border text-muted-foreground hover:border-destructive/50 hover:text-destructive"
                         type="button"
                         aria-label={`移除物品 ${index + 1}`}
                         onClick={() =>
@@ -385,24 +404,22 @@ export function OrderCreatePage() {
                           )
                         }
                       >
-                        <Trash2 size={16} />
+                        <Trash2 aria-hidden="true" className="size-4" />
                       </button>
-                    )}
+                    ) : null}
                   </div>
-                  <div className="form-grid">
-                    <label>
-                      物品名称 *
-                      <input
+                  <FormGrid>
+                    <FormField label="物品名称 *">
+                      <TextInput
                         required
                         value={item.name}
                         onChange={(event) =>
                           updateItem(item.key, { name: event.target.value })
                         }
                       />
-                    </label>
-                    <label>
-                      商品原价（{currency}）*
-                      <input
+                    </FormField>
+                    <FormField label={`商品原价（${currency}）*`}>
+                      <TextInput
                         required
                         inputMode="decimal"
                         placeholder="0.00"
@@ -411,10 +428,9 @@ export function OrderCreatePage() {
                           updateItem(item.key, { listedPrice: event.target.value })
                         }
                       />
-                    </label>
-                    <label>
-                      分类 *
-                      <select
+                    </FormField>
+                    <FormField label="分类 *">
+                      <SelectInput
                         required
                         value={item.categoryId}
                         onChange={(event) =>
@@ -427,11 +443,10 @@ export function OrderCreatePage() {
                             {category.name}
                           </option>
                         ))}
-                      </select>
-                    </label>
-                    <label>
-                      初始状态 *
-                      <select
+                      </SelectInput>
+                    </FormField>
+                    <FormField label="初始状态 *">
+                      <SelectInput
                         required
                         value={item.initialStatusId}
                         onChange={(event) =>
@@ -444,30 +459,27 @@ export function OrderCreatePage() {
                             {status.name}
                           </option>
                         ))}
-                      </select>
-                    </label>
-                    <label>
-                      品牌
-                      <input
+                      </SelectInput>
+                    </FormField>
+                    <FormField label="品牌">
+                      <TextInput
                         value={item.brand}
                         onChange={(event) =>
                           updateItem(item.key, { brand: event.target.value })
                         }
                       />
-                    </label>
-                    <label>
-                      型号
-                      <input
+                    </FormField>
+                    <FormField label="型号">
+                      <TextInput
                         value={item.model}
                         onChange={(event) =>
                           updateItem(item.key, { model: event.target.value })
                         }
                       />
-                    </label>
-                    {allocationMethod === 'manual' && (
-                      <label>
-                        手工实付（{currency}）*
-                        <input
+                    </FormField>
+                    {allocationMethod === 'manual' ? (
+                      <FormField label={`手工实付（${currency}）*`}>
+                        <TextInput
                           required
                           inputMode="decimal"
                           placeholder="0.00"
@@ -476,20 +488,20 @@ export function OrderCreatePage() {
                             updateItem(item.key, { allocatedAmount: event.target.value })
                           }
                         />
-                      </label>
-                    )}
-                  </div>
-                  {allocationPreview?.lines[index] && (
-                    <p className="order-line-preview">
+                      </FormField>
+                    ) : null}
+                  </FormGrid>
+                  {allocationPreview?.lines[index] ? (
+                    <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
                       预计取得成本{' '}
-                      <strong>
+                      <strong data-slot="amount" className="font-medium text-foreground">
                         {formatMinorCurrency(
                           allocationPreview.lines[index].allocatedAmountMinor.toString(),
                           currency,
                         )}
                       </strong>
-                      {allocationPreview.lines[index].allocatedDiscountMinor > 0n && (
-                        <span>
+                      {allocationPreview.lines[index].allocatedDiscountMinor > 0n ? (
+                        <span data-slot="amount">
                           含优惠 −
                           {formatMinorCurrency(
                             allocationPreview.lines[
@@ -498,73 +510,73 @@ export function OrderCreatePage() {
                             currency,
                           )}
                         </span>
-                      )}
+                      ) : null}
                     </p>
-                  )}
+                  ) : null}
                 </article>
               ))}
             </div>
-          </section>
+          </Panel>
         </div>
 
-        <aside className="order-allocation-panel">
-          <div className="allocation-panel-icon">
-            <Calculator size={22} />
-          </div>
-          <p className="eyebrow">Live allocation</p>
-          <h2>分摊预览</h2>
-          {allocationPreview ? (
-            <>
-              <dl>
-                <div>
-                  <dt>商品原价</dt>
-                  <dd>
-                    {formatMinorCurrency(
-                      allocationPreview.subtotalMinor.toString(),
-                      currency,
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>订单优惠</dt>
-                  <dd>
-                    −
-                    {formatMinorCurrency(
-                      (moneyMinor(discount, currency, true) ?? 0n).toString(),
-                      currency,
-                    )}
-                  </dd>
-                </div>
-                <div className="allocation-total">
-                  <dt>订单实付</dt>
-                  <dd>
-                    {formatMinorCurrency(
-                      allocationPreview.totalPaidMinor.toString(),
-                      currency,
-                    )}
-                  </dd>
-                </div>
-              </dl>
-              <p>
-                {allocationMethod === 'manual'
-                  ? '每行实付合计已精确匹配订单总额。'
-                  : '使用最大余数法分配到最小货币单位，舍入差额按稳定顺序回收。'}
+        {/* 分摊预览随输入实时重算 —— 分摊口径必须在提交前就能看见 */}
+        <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-6 lg:self-start">
+          <Panel eyebrow="Live allocation" title="分摊预览">
+            {allocationPreview ? (
+              <>
+                <dl className="flex flex-col">
+                  <div className="flex justify-between gap-2 border-b border-dashed border-border py-2">
+                    <dt className="text-xs text-muted-foreground">商品原价</dt>
+                    <dd data-slot="amount" className="text-sm">
+                      {formatMinorCurrency(
+                        allocationPreview.subtotalMinor.toString(),
+                        currency,
+                      )}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-2 border-b border-dashed border-border py-2">
+                    <dt className="text-xs text-muted-foreground">订单优惠</dt>
+                    <dd data-slot="amount" className="text-sm">
+                      −
+                      {formatMinorCurrency(
+                        (moneyMinor(discount, currency, true) ?? 0n).toString(),
+                        currency,
+                      )}
+                    </dd>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2 py-2">
+                    <dt data-slot="ledger-label">订单实付</dt>
+                    <dd data-slot="amount" className="text-lg font-medium text-heading">
+                      {formatMinorCurrency(
+                        allocationPreview.totalPaidMinor.toString(),
+                        currency,
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+                <p className="text-xs text-muted-foreground">
+                  {allocationMethod === 'manual'
+                    ? '每行实付合计已精确匹配订单总额。'
+                    : '使用最大余数法分配到最小货币单位，舍入差额按稳定顺序回收。'}
+                </p>
+              </>
+            ) : (
+              <p data-slot="pending" className="text-sm">
+                填写有效金额后显示精确分摊。
               </p>
-            </>
-          ) : (
-            <p className="allocation-invalid">填写有效金额后显示精确分摊。</p>
-          )}
-          {formError && <div className="form-error">{formError}</div>}
-          <button
-            className="primary-action"
-            type="submit"
-            disabled={createOrder.isPending}
-          >
+            )}
+          </Panel>
+
+          <FormError>{formError}</FormError>
+
+          <Button type="submit" disabled={createOrder.isPending}>
             {createOrder.isPending ? '正在创建订单…' : `创建 ${items.length} 件物品`}
-          </button>
-          <small>订单提交后作为资金历史保存，不提供直接覆盖编辑。</small>
+          </Button>
+          <small className="text-xs text-muted-foreground">
+            订单提交后作为资金历史保存，不提供直接覆盖编辑。
+          </small>
         </aside>
       </form>
-    </>
+    </div>
   );
 }

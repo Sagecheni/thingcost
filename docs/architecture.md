@@ -201,7 +201,7 @@ docs/
 外部能力全部通过 Provider 接口：
 
 - `ExchangeRateProvider`：默认 Frankfurter v2。
-- `NotificationProvider`：Telegram、Webhook、企业微信群机器人、Server酱、PushPlus；每个渠道均支持管理员测试发送。
+- `NotificationProvider`：Telegram、Webhook、企业微信群机器人、Server酱、PushPlus、Bark（iOS）；每个渠道均支持管理员测试发送。
 - 订阅与数字许可使用独立表 `subscriptions` / `subscription_price_changes` / `subscription_charges`，不伪装成实物 `assets`；只存账号标识与密码管理器外链，永不存密码或 License Key。
 - 订阅通过 `subscription_tags`、`subscription_attachments` 与通用提醒 `reminders.subscription_id` 共享标签、私有资料和提醒能力。
 - 种草价格只接受用户主动录入的手工快照；不设计购物平台自动采集 Provider。
@@ -216,7 +216,7 @@ docs/
 ## 10. 密钥与附件
 
 - 环境变量可锁定某项 Provider 配置。
-- Web 设置中的密钥由主密钥使用经过认证的加密算法加密后入库；支持 Telegram、Webhook、企业微信、Server酱和 PushPlus 的数据库渠道。
+- Web 设置中的密钥由主密钥使用经过认证的加密算法加密后入库；支持 Telegram、Webhook、企业微信、Server酱、PushPlus 和 Bark（iOS）的数据库渠道。
 - 主密钥只来自环境/secret，不进入数据库或便携导出。
 - 备份与导出默认排除所有 Provider 密钥和个人 Token。
 - Portable Export v1 对旧版本估值记录保持兼容，并同步保存订阅价格历史、扣款、标签和私有订阅附件；replace import 恢复原始 ID 与存储键。

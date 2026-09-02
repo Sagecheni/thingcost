@@ -1,0 +1,1260 @@
+<title>物品卡片方向比选 · 物纪 Chronicle</title>
+<style>
+  /* ───────────────────────────────────────────────────────────
+   展板本身刻意无彩：所有颜色都留给样品。
+   强调只靠字重、规则线和反白 chip。
+   ─────────────────────────────────────────────────────────── */
+  :root {
+    --ground: #f7f7f5;
+    --panel: #ffffff;
+    --ink: #16181c;
+    --ink-2: #3d424b;
+    --ink-dim: #6b7280;
+    --rule: #dededa;
+    --rule-hard: #c3c4bf;
+    --chip-bg: #16181c;
+    --chip-ink: #f7f7f5;
+
+    --sans:
+      -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
+      'Noto Sans SC', 'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif;
+    --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+
+    --step-0: 13px;
+    --step-1: 15px;
+    --step-2: 18px;
+    --step-3: 24px;
+    --step-4: 34px;
+  }
+
+  :root:not([data-theme='light']) {
+    @media (prefers-color-scheme: dark) {
+      --ground: #131417;
+      --panel: #1a1c20;
+      --ink: #e9eaec;
+      --ink-2: #b8bcc3;
+      --ink-dim: #888e98;
+      --rule: #2a2d33;
+      --rule-hard: #3c4049;
+      --chip-bg: #e9eaec;
+      --chip-ink: #131417;
+    }
+  }
+
+  :root[data-theme='dark'] {
+    --ground: #131417;
+    --panel: #1a1c20;
+    --ink: #e9eaec;
+    --ink-2: #b8bcc3;
+    --ink-dim: #888e98;
+    --rule: #2a2d33;
+    --rule-hard: #3c4049;
+    --chip-bg: #e9eaec;
+    --chip-ink: #131417;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: var(--step-1);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  /* ── 页眉 ───────────────────────────────────────────────── */
+  .masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 22px;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .masthead h1 {
+    margin: 0;
+    font-size: var(--step-4);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+  .masthead p {
+    margin: 0;
+    max-width: 62ch;
+    color: var(--ink-2);
+  }
+  .runline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+  }
+
+  /* ── 评判标准 ───────────────────────────────────────────── */
+  .criteria {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+  }
+  .criteria > div {
+    background: var(--panel);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .criteria dt {
+    font-weight: 650;
+    font-size: var(--step-0);
+  }
+  .criteria dd {
+    margin: 0;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--ink-dim);
+  }
+
+  /* ── 样品舱 ─────────────────────────────────────────────── */
+  .bay {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border: 1px solid var(--rule-hard);
+    background: var(--panel);
+  }
+  .bay-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px 14px;
+    padding: 18px 22px 16px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .bay-no {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-dim);
+    letter-spacing: 0.08em;
+  }
+  .bay-head h2 {
+    margin: 0;
+    font-size: var(--step-2);
+    font-weight: 700;
+    letter-spacing: -0.005em;
+  }
+  .bay-head .thesis {
+    flex: 1 1 320px;
+    min-width: 0;
+    margin: 0;
+    font-size: var(--step-0);
+    color: var(--ink-dim);
+  }
+  .verdict {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border: 1px solid var(--rule-hard);
+    color: var(--ink-dim);
+    white-space: nowrap;
+  }
+  .verdict--pick {
+    background: var(--chip-bg);
+    color: var(--chip-ink);
+    border-color: var(--chip-bg);
+  }
+
+  /* 样品永远站在自己的地面上 —— 卡片的设计包含它脚下那块底。 */
+  .stage {
+    padding: 34px 28px;
+    overflow-x: auto;
+  }
+  .stage-label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.55;
+    margin: 0 0 16px;
+  }
+  .rowcards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(190px, 1fr));
+    gap: 20px;
+    min-width: 640px;
+  }
+
+  .notes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--rule);
+    border-top: 1px solid var(--rule);
+  }
+  .notes > div {
+    background: var(--panel);
+    padding: 15px 22px 17px;
+  }
+  .notes h3 {
+    margin: 0 0 6px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-weight: 500;
+  }
+  .notes p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--ink-2);
+  }
+  .notes code {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    background: color-mix(in oklab, var(--ink) 8%, transparent);
+    padding: 1px 4px;
+  }
+
+  /* ── 收尾 ───────────────────────────────────────────────── */
+  .close {
+    border-top: 2px solid var(--ink);
+    padding-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .close h2 {
+    margin: 0;
+    font-size: var(--step-3);
+    font-weight: 700;
+  }
+  .close p {
+    margin: 0;
+    max-width: 68ch;
+    color: var(--ink-2);
+  }
+  .cost {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 6px;
+  }
+  .cost th,
+  .cost td {
+    text-align: left;
+    padding: 9px 14px 9px 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  .cost th {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-weight: 500;
+  }
+  .cost td:first-child {
+    font-weight: 600;
+    white-space: nowrap;
+    padding-right: 22px;
+  }
+  .num {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  @media (max-width: 720px) {
+    .wrap {
+      padding: 36px 16px 64px;
+      gap: 40px;
+    }
+    .notes {
+      grid-template-columns: 1fr;
+    }
+    .stage {
+      padding: 24px 16px;
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+   样品 1 · 硬边
+   3px 描边 + 实心偏移投影 + 直角 + 波点底。
+   去掉旋转，去掉按位置轮换的投影色。
+   ═══════════════════════════════════════════════════════════ */
+  .spec-hard {
+    --h-ground: #14131a;
+    --h-card: #1f1c27;
+    --h-ink: #f2eee3;
+    --h-dim: #a49c8c;
+    --h-edge: #f2eee3;
+    --h-cast: #000000;
+    --h-amber: #f5c451;
+    --h-green: #6fbf8b;
+
+    background:
+      radial-gradient(rgba(242, 238, 227, 0.16) 1.3px, transparent 1.3px) 0 0 / 22px 22px,
+      var(--h-ground);
+    color: var(--h-ink);
+  }
+  .spec-hard.is-day {
+    --h-ground: #fff8ea;
+    --h-card: #ffffff;
+    --h-ink: #131118;
+    --h-dim: #6a6255;
+    --h-edge: #131118;
+    --h-cast: #131118;
+    --h-amber: #e0a01c;
+    --h-green: #2f7d51;
+    background:
+      radial-gradient(rgba(19, 17, 24, 0.18) 1.3px, transparent 1.3px) 0 0 / 22px 22px,
+      var(--h-ground);
+    border-top: 1px solid var(--rule);
+  }
+  .spec-hard .hc {
+    background: var(--h-card);
+    border: 3px solid var(--h-edge);
+    border-radius: 0;
+    box-shadow: 6px 6px 0 var(--h-cast);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    transition:
+      transform 0.12s,
+      box-shadow 0.12s;
+    cursor: pointer;
+  }
+  .spec-hard .hc:hover,
+  .spec-hard .hc:focus-visible {
+    transform: translate(-2px, -2px);
+    box-shadow: 9px 9px 0 var(--h-cast);
+    outline: none;
+  }
+  .spec-hard .hc-cover {
+    height: 86px;
+    border-bottom: 3px solid var(--h-edge);
+    background:
+      repeating-linear-gradient(
+        45deg,
+        transparent 0 7px,
+        rgba(242, 238, 227, 0.06) 7px 14px
+      ),
+      color-mix(in oklab, var(--h-amber) 22%, var(--h-card));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--h-dim);
+  }
+  .spec-hard .hc-body {
+    padding: 12px 13px 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .spec-hard .hc-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .spec-hard .hc-cat {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--h-dim);
+  }
+  .spec-hard .hc-st {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border: 2px solid currentColor;
+    color: var(--h-green);
+    white-space: nowrap;
+  }
+  .spec-hard .hc-st--idle {
+    color: var(--h-dim);
+  }
+  .spec-hard .hc-name {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--h-ink);
+  }
+  .spec-hard .hc-rate {
+    font-variant-numeric: tabular-nums;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--h-amber);
+    letter-spacing: -0.015em;
+  }
+  .spec-hard .hc-rate small {
+    font-size: 12px;
+    font-weight: 700;
+    margin-left: 2px;
+  }
+  .spec-hard .hc-rate.is-unknown {
+    font-size: 14px;
+    color: var(--h-dim);
+    border-left: 4px solid var(--h-dim);
+    padding-left: 8px;
+    letter-spacing: 0;
+  }
+  .spec-hard .hc-foot {
+    display: flex;
+    gap: 14px;
+    margin: 2px 0 0;
+    padding-top: 8px;
+    border-top: 2px solid color-mix(in oklab, var(--h-edge) 28%, transparent);
+    font-variant-numeric: tabular-nums;
+    font-size: 11.5px;
+    color: var(--h-dim);
+  }
+  .spec-hard .hc-foot b {
+    color: var(--h-ink);
+    font-weight: 700;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+   样品 2 · 深色玻璃（现状基准，取自 theme.css 实际数值）
+   ═══════════════════════════════════════════════════════════ */
+  .spec-glass {
+    --g-card: rgb(17 24 39 / 72%);
+    --g-ink: #e5e7eb;
+    --g-head: #f8fafc;
+    --g-dim: #9ca3af;
+    --g-border: rgb(148 163 184 / 16%);
+    --g-link: #3b82f6;
+    --g-green: #22c55e;
+    background:
+      radial-gradient(circle at top left, rgb(59 130 246 / 12%), transparent 34%),
+      radial-gradient(circle at top right, rgb(34 197 94 / 6%), transparent 28%), #0b0f14;
+    color: var(--g-ink);
+  }
+  .spec-glass .gc {
+    background: var(--g-card);
+    border: 1px solid var(--g-border);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 22%);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition:
+      box-shadow 0.2s,
+      border-color 0.2s;
+    cursor: pointer;
+  }
+  .spec-glass .gc:hover,
+  .spec-glass .gc:focus-visible {
+    box-shadow: 0 24px 60px rgb(0 0 0 / 32%);
+    border-color: rgb(148 163 184 / 32%);
+    outline: none;
+  }
+  .spec-glass .gc-cover {
+    height: 86px;
+    background: linear-gradient(150deg, rgb(59 130 246 / 22%), rgb(17 24 39 / 90%));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--g-dim);
+  }
+  .spec-glass .gc-body {
+    padding: 16px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .spec-glass .gc-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .spec-glass .gc-cat {
+    font-size: 12px;
+    color: var(--g-dim);
+  }
+  .spec-glass .gc-st {
+    font-size: 11px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: rgb(34 197 94 / 12%);
+    color: var(--g-green);
+    white-space: nowrap;
+  }
+  .spec-glass .gc-st--idle {
+    background: rgb(148 163 184 / 12%);
+    color: var(--g-dim);
+  }
+  .spec-glass .gc-name {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--g-head);
+    line-height: 1.4;
+  }
+  .spec-glass .gc-rate {
+    font-variant-numeric: tabular-nums;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--g-head);
+    line-height: 1.2;
+  }
+  .spec-glass .gc-rate small {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--g-dim);
+    margin-left: 3px;
+  }
+  .spec-glass .gc-rate.is-unknown {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--g-dim);
+  }
+  .spec-glass .gc-foot {
+    display: flex;
+    gap: 14px;
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    color: var(--g-dim);
+    margin-top: 2px;
+  }
+  .spec-glass .gc-foot b {
+    color: var(--g-ink);
+    font-weight: 500;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+   样品 3 · 存根
+   账本的物理形态：纸、骑缝虚线、等宽数字、朱红。
+   ═══════════════════════════════════════════════════════════ */
+  .spec-stub {
+    --s-paper: #e8e4d8;
+    --s-card: #faf8f1;
+    --s-ink: #1b1a16;
+    --s-dim: #7d786a;
+    --s-rule: #c8c2b0;
+    --s-red: #b1372c;
+    background:
+      linear-gradient(var(--s-paper), var(--s-paper)),
+      repeating-linear-gradient(
+        0deg,
+        transparent 0 27px,
+        rgba(27, 26, 22, 0.045) 27px 28px
+      );
+    background-blend-mode: multiply;
+    color: var(--s-ink);
+  }
+  .spec-stub .sc {
+    background: var(--s-card);
+    border: 1px solid var(--s-rule);
+    border-top: 4px solid var(--s-ink);
+    border-radius: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.15s;
+    cursor: pointer;
+  }
+  .spec-stub .sc:hover,
+  .spec-stub .sc:focus-visible {
+    box-shadow:
+      0 0 0 1px var(--s-ink) inset,
+      0 6px 18px rgba(27, 26, 22, 0.14);
+    outline: none;
+  }
+  .spec-stub .sc-hd {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    padding: 9px 13px 8px;
+    border-bottom: 1px dashed var(--s-rule);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--s-dim);
+  }
+  .spec-stub .sc-body {
+    padding: 13px 13px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .spec-stub .sc-name {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 650;
+    line-height: 1.35;
+  }
+  .spec-stub .sc-rate {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .spec-stub .sc-rate small {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--s-dim);
+    margin-left: 3px;
+  }
+  .spec-stub .sc-rate.is-unknown {
+    font-size: 13px;
+    font-family: var(--sans);
+    color: var(--s-red);
+    letter-spacing: 0;
+    font-weight: 600;
+  }
+  /* 骑缝：撕口线 */
+  .spec-stub .sc-perf {
+    margin: 4px 0 0;
+    border-top: 1px dashed var(--s-rule);
+    position: relative;
+  }
+  .spec-stub .sc-perf::before,
+  .spec-stub .sc-perf::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--s-paper);
+    border: 1px solid var(--s-rule);
+  }
+  .spec-stub .sc-perf::before {
+    left: -7px;
+  }
+  .spec-stub .sc-perf::after {
+    right: -7px;
+  }
+  .spec-stub .sc-foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 13px 11px;
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+    color: var(--s-dim);
+  }
+  .spec-stub .sc-foot b {
+    color: var(--s-ink);
+    font-weight: 500;
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+   样品 4 · 密档
+   不做卡片：做账页。一屏 20+ 件，金额成列。
+   ═══════════════════════════════════════════════════════════ */
+  .spec-dense {
+    --d-ground: #0d0e10;
+    --d-ink: #dfe2e6;
+    --d-dim: #767c86;
+    --d-rule: #22252a;
+    --d-cool: #7aa2c8;
+    --d-warn: #b8894a;
+    background: var(--d-ground);
+    color: var(--d-ink);
+  }
+  .spec-dense .dl {
+    display: flex;
+    flex-direction: column;
+    min-width: 560px;
+  }
+  .spec-dense .dl-hd {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) 92px 96px 74px;
+    gap: 14px;
+    align-items: center;
+    padding: 0 10px 7px;
+    border-bottom: 1px solid var(--d-rule);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: var(--d-dim);
+  }
+  .spec-dense .dr {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) 92px 96px 74px;
+    gap: 14px;
+    align-items: center;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--d-rule);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .spec-dense .dr:hover,
+  .spec-dense .dr:focus-visible {
+    background: rgba(122, 162, 200, 0.08);
+    outline: none;
+  }
+  .spec-dense .dr-thumb {
+    width: 34px;
+    height: 34px;
+    background: linear-gradient(140deg, #2b3038, #171a1f);
+    border: 1px solid var(--d-rule);
+  }
+  .spec-dense .dr-id {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .spec-dense .dr-name {
+    font-size: 13.5px;
+    font-weight: 550;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .spec-dense .dr-sub {
+    font-size: 11px;
+    color: var(--d-dim);
+    line-height: 1.3;
+  }
+  .spec-dense .dr-num {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 13px;
+    text-align: right;
+  }
+  .spec-dense .dr-num--lead {
+    color: var(--d-cool);
+    font-size: 14px;
+  }
+  .spec-dense .dr-num--unknown {
+    color: var(--d-warn);
+    font-size: 11px;
+    font-family: var(--sans);
+  }
+  .spec-dense .dr-num--muted {
+    color: var(--d-dim);
+    font-size: 12px;
+  }
+  .spec-dense .dr-bar {
+    height: 4px;
+    background: rgba(122, 162, 200, 0.16);
+    position: relative;
+  }
+  .spec-dense .dr-bar i {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: var(--d-cool);
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="kicker">物纪 · Chronicle — 前端重构</p>
+    <h1>物品卡片：四个方向的实样比选</h1>
+    <p>
+      同一条数据、同一套字段，四种构造方式。每个样品站在自己的地面上呈现——卡片的设计包含它脚下那块底，
+      抽出来放在统一背景上比，比出来的结论是假的。
+    </p>
+    <div class="runline">
+      <span>范围 · 物品列表页卡片</span>
+      <span>日均成本 = 净成本 ÷ 服役天数</span>
+      <span>数据为真实字段结构</span>
+    </div>
+  </header>
+
+  <!-- 评判标准：先立尺子，再比 -->
+  <dl class="criteria">
+    <div>
+      <dt>一屏放几件</dt>
+      <dd>物品页是主力页面，一屏 6 件和一屏 24 件是两种产品。</dd>
+    </div>
+    <div>
+      <dt>金额能否成列</dt>
+      <dd>默认按日均成本排序，「¥15.80 / 天」这一列要能一眼扫下来。</dd>
+    </div>
+    <div>
+      <dt>未知成本怎么说</dt>
+      <dd>产品原则第 4 条：未知值不伪装成零。卡片必须有位置说这句话。</dd>
+    </div>
+    <div>
+      <dt>明暗两套 + 零外部字体</dt>
+      <dd>核心功能本地可用，不能挂 CDN 字体。中文要一直是同一副长相。</dd>
+    </div>
+  </dl>
+
+  <!-- ══════════════ 1 · 硬边 ══════════════ -->
+  <section class="bay">
+    <div class="bay-head">
+      <span class="bay-no">01</span>
+      <h2>硬边</h2>
+      <p class="thesis">
+        孟菲斯的骨架，去掉旋转与位置配色。3px 描边 · 实心偏移投影 · 直角 · 波点底。
+      </p>
+      <span class="verdict verdict--pick">建议</span>
+    </div>
+
+    <div class="stage spec-hard">
+      <p class="stage-label">暗色</p>
+      <div class="rowcards">
+        <article class="hc" tabindex="0">
+          <div class="hc-cover">封面位</div>
+          <div class="hc-body">
+            <div class="hc-top">
+              <span class="hc-cat">相机影音</span>
+              <span class="hc-st">服役中</span>
+            </div>
+            <h4 class="hc-name">索尼 α7 IV</h4>
+            <div class="hc-rate">¥15.80<small>/天</small></div>
+            <div class="hc-foot">
+              <span>净成本 <b>¥8,680</b></span>
+              <span>服役 <b>549</b> 天</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="hc" tabindex="0">
+          <div class="hc-cover">封面位</div>
+          <div class="hc-body">
+            <div class="hc-top">
+              <span class="hc-cat">家具</span>
+              <span class="hc-st">服役中</span>
+            </div>
+            <h4 class="hc-name">Aeron 人体工学椅</h4>
+            <div class="hc-rate">¥6.20<small>/天</small></div>
+            <div class="hc-foot">
+              <span>净成本 <b>¥9,240</b></span>
+              <span>服役 <b>1,490</b> 天</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="hc" tabindex="0">
+          <div class="hc-cover">封面位</div>
+          <div class="hc-body">
+            <div class="hc-top">
+              <span class="hc-cat">交通</span>
+              <span class="hc-st hc-st--idle">闲置</span>
+            </div>
+            <h4 class="hc-name">Brompton 折叠车</h4>
+            <div class="hc-rate is-unknown">成本未记录</div>
+            <div class="hc-foot">
+              <span>持有 <b>412</b> 天</span>
+              <span>服役 <b>128</b> 天</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <div class="stage spec-hard is-day">
+      <p class="stage-label">亮色 · 同一套构造，只换底色系</p>
+      <div class="rowcards">
+        <article class="hc" tabindex="0">
+          <div class="hc-cover">封面位</div>
+          <div class="hc-body">
+            <div class="hc-top">
+              <span class="hc-cat">相机影音</span>
+              <span class="hc-st">服役中</span>
+            </div>
+            <h4 class="hc-name">索尼 α7 IV</h4>
+            <div class="hc-rate">¥15.80<small>/天</small></div>
+            <div class="hc-foot">
+              <span>净成本 <b>¥8,680</b></span>
+              <span>服役 <b>549</b> 天</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="hc" tabindex="0">
+          <div class="hc-cover">封面位</div>
+          <div class="hc-body">
+            <div class="hc-top">
+              <span class="hc-cat">家具</span>
+              <span class="hc-st">服役中</span>
+            </div>
+            <h4 class="hc-name">Aeron 人体工学椅</h4>
+            <div class="hc-rate">¥6.20<small>/天</small></div>
+            <div class="hc-foot">
+              <span>净成本 <b>¥9,240</b></span>
+              <span>服役 <b>1,490</b> 天</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="hc" tabindex="0">
+          <div class="hc-cover">封面位</div>
+          <div class="hc-body">
+            <div class="hc-top">
+              <span class="hc-cat">交通</span>
+              <span class="hc-st hc-st--idle">闲置</span>
+            </div>
+            <h4 class="hc-name">Brompton 折叠车</h4>
+            <div class="hc-rate is-unknown">成本未记录</div>
+            <div class="hc-foot">
+              <span>持有 <b>412</b> 天</span>
+              <span>服役 <b>128</b> 天</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div>
+        <h3>为什么是它</h3>
+        <p>
+          描边替代留白承担分栏工作，卡片可以压得更紧而不糊。金额用琥珀单点强调，
+          红绿留给收支语义。悬停
+          <code>translate(-2px,-2px)</code> 加深投影，按下投影归零——
+          物理反馈来自构造本身，不是额外动效。
+        </p>
+      </div>
+      <div>
+        <h3>代价</h3>
+        <p>
+          3px 描边在中文小字号下会显得压，正文字号不能低于 13px。实心投影吃 6–9px
+          横向空间， 栅格间距要给够。另：这套硬边和你归档的像素沙盒
+          <code>DESIGN.md</code> 是同一套构造语法。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 2 · 深色玻璃 ══════════════ -->
+  <section class="bay">
+    <div class="bay-head">
+      <span class="bay-no">02</span>
+      <h2>深色玻璃</h2>
+      <p class="thesis">
+        现状基准。数值直接取自 <code>theme.css</code>：16px 圆角 · 半透明卡 · 大柔光投影 ·
+        蓝色主色。
+      </p>
+      <span class="verdict">已实现</span>
+    </div>
+
+    <div class="stage spec-glass">
+      <p class="stage-label">这是你现在跑的东西</p>
+      <div class="rowcards">
+        <article class="gc" tabindex="0">
+          <div class="gc-cover">封面位</div>
+          <div class="gc-body">
+            <div class="gc-top">
+              <span class="gc-cat">相机影音</span>
+              <span class="gc-st">服役中</span>
+            </div>
+            <h4 class="gc-name">索尼 α7 IV</h4>
+            <div class="gc-rate">¥15.80<small>/天</small></div>
+            <div class="gc-foot">
+              <span>净成本 <b>¥8,680</b></span>
+              <span>服役 <b>549</b> 天</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="gc" tabindex="0">
+          <div class="gc-cover">封面位</div>
+          <div class="gc-body">
+            <div class="gc-top">
+              <span class="gc-cat">家具</span>
+              <span class="gc-st">服役中</span>
+            </div>
+            <h4 class="gc-name">Aeron 人体工学椅</h4>
+            <div class="gc-rate">¥6.20<small>/天</small></div>
+            <div class="gc-foot">
+              <span>净成本 <b>¥9,240</b></span>
+              <span>服役 <b>1,490</b> 天</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="gc" tabindex="0">
+          <div class="gc-cover">封面位</div>
+          <div class="gc-body">
+            <div class="gc-top">
+              <span class="gc-cat">交通</span>
+              <span class="gc-st gc-st--idle">闲置</span>
+            </div>
+            <h4 class="gc-name">Brompton 折叠车</h4>
+            <div class="gc-rate is-unknown">成本未记录</div>
+            <div class="gc-foot">
+              <span>持有 <b>412</b> 天</span>
+              <span>服役 <b>128</b> 天</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div>
+        <h3>它做对的</h3>
+        <p>
+          中文在低对比深底上很舒服，长时间看不累。半透明卡叠在渐变晕染上，层次是真的，不是画出来的。
+        </p>
+      </div>
+      <div>
+        <h3>它的问题</h3>
+        <p>
+          16px 圆角 + 24px 柔光投影要求卡间距不小于 20px，一屏放不下多少件。
+          卡片边界靠低对比 1px 线，扫读时物品和物品之间是糊的——恰好是物品页最吃亏的地方。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 3 · 存根 ══════════════ -->
+  <section class="bay">
+    <div class="bay-head">
+      <span class="bay-no">03</span>
+      <h2>存根</h2>
+      <p class="thesis">
+        从「物纪」这个名字长出来的：账本的物理形态。纸底 · 骑缝撕口 · 全等宽数字 ·
+        朱红标注。
+      </p>
+      <span class="verdict">另一条路</span>
+    </div>
+
+    <div class="stage spec-stub">
+      <p class="stage-label">每件物品是一张存根，日均成本是票面金额</p>
+      <div class="rowcards">
+        <article class="sc" tabindex="0">
+          <div class="sc-hd"><span>相机影音</span><span>服役中</span></div>
+          <div class="sc-body">
+            <h4 class="sc-name">索尼 α7 IV</h4>
+            <div class="sc-rate">¥15.80<small>/ 天</small></div>
+          </div>
+          <div class="sc-perf"></div>
+          <div class="sc-foot">
+            <span>净成本 <b>¥8,680</b></span>
+            <span>服役 <b>549</b> 天</span>
+          </div>
+        </article>
+
+        <article class="sc" tabindex="0">
+          <div class="sc-hd"><span>家具</span><span>服役中</span></div>
+          <div class="sc-body">
+            <h4 class="sc-name">Aeron 人体工学椅</h4>
+            <div class="sc-rate">¥6.20<small>/ 天</small></div>
+          </div>
+          <div class="sc-perf"></div>
+          <div class="sc-foot">
+            <span>净成本 <b>¥9,240</b></span>
+            <span>服役 <b>1,490</b> 天</span>
+          </div>
+        </article>
+
+        <article class="sc" tabindex="0">
+          <div class="sc-hd"><span>交通</span><span>闲置</span></div>
+          <div class="sc-body">
+            <h4 class="sc-name">Brompton 折叠车</h4>
+            <div class="sc-rate is-unknown">成本未记录</div>
+          </div>
+          <div class="sc-perf"></div>
+          <div class="sc-foot">
+            <span>持有 <b>412</b> 天</span>
+            <span>服役 <b>128</b> 天</span>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div>
+        <h3>它的赌注</h3>
+        <p>
+          「未知」用朱红写在票面上，就是账本里红字勾注的用法——未知值不但没被当成零，
+          还成了最显眼的东西。等宽数字让金额天然成列，不用刻意对齐。
+        </p>
+      </div>
+      <div>
+        <h3>代价</h3>
+        <p>
+          纸底基本锁死亮色，暗色版要重新想一遍（深色的「纸」是个矛盾修辞）。
+          封面照片和纸的隐喻打架，得降级成小缩略或者干脆不放。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 4 · 密档 ══════════════ -->
+  <section class="bay">
+    <div class="bay-head">
+      <span class="bay-no">04</span>
+      <h2>密档</h2>
+      <p class="thesis">
+        反过来问：物品页真的需要卡片吗。发丝线行 · 金额右对齐成列 · 一屏 20+ 件。
+      </p>
+      <span class="verdict">规模化时</span>
+    </div>
+
+    <div class="stage spec-dense">
+      <p class="stage-label">按日均成本降序，未记录成本的沉底</p>
+      <div class="dl">
+        <div class="dl-hd">
+          <span></span><span>物品</span>
+          <span style="text-align: right">日均成本</span>
+          <span style="text-align: right">净成本</span>
+          <span style="text-align: right">服役</span>
+        </div>
+        <div class="dr" tabindex="0">
+          <div class="dr-thumb"></div>
+          <div class="dr-id">
+            <span class="dr-name">索尼 α7 IV</span>
+            <span class="dr-sub">相机影音 · 服役中</span>
+          </div>
+          <span class="dr-num dr-num--lead">¥15.80</span>
+          <span class="dr-num">¥8,680</span>
+          <span class="dr-num dr-num--muted">549 天</span>
+        </div>
+        <div class="dr" tabindex="0">
+          <div class="dr-thumb"></div>
+          <div class="dr-id">
+            <span class="dr-name">MacBook Pro 14"</span>
+            <span class="dr-sub">数码 · 服役中</span>
+          </div>
+          <span class="dr-num dr-num--lead">¥11.40</span>
+          <span class="dr-num">¥14,999</span>
+          <span class="dr-num dr-num--muted">1,316 天</span>
+        </div>
+        <div class="dr" tabindex="0">
+          <div class="dr-thumb"></div>
+          <div class="dr-id">
+            <span class="dr-name">Aeron 人体工学椅</span>
+            <span class="dr-sub">家具 · 服役中</span>
+          </div>
+          <span class="dr-num dr-num--lead">¥6.20</span>
+          <span class="dr-num">¥9,240</span>
+          <span class="dr-num dr-num--muted">1,490 天</span>
+        </div>
+        <div class="dr" tabindex="0">
+          <div class="dr-thumb"></div>
+          <div class="dr-id">
+            <span class="dr-name">米家空气净化器</span>
+            <span class="dr-sub">家电 · 服役中</span>
+          </div>
+          <span class="dr-num dr-num--lead">¥0.94</span>
+          <span class="dr-num">¥899</span>
+          <span class="dr-num dr-num--muted">956 天</span>
+        </div>
+        <div class="dr" tabindex="0">
+          <div class="dr-thumb"></div>
+          <div class="dr-id">
+            <span class="dr-name">Brompton 折叠车</span>
+            <span class="dr-sub">交通 · 闲置</span>
+          </div>
+          <span class="dr-num dr-num--unknown">成本未记录</span>
+          <span class="dr-num dr-num--muted">—</span>
+          <span class="dr-num dr-num--muted">128 天</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes">
+      <div>
+        <h3>它做对的</h3>
+        <p>
+          金额真的成了一列，扫读代价接近零。<code>—</code> 而不是
+          <code>¥0</code> 表达未知， 语义精确。物品多起来之后，这是唯一还能用的形态。
+        </p>
+      </div>
+      <div>
+        <h3>代价</h3>
+        <p>
+          你明确说了要卡片。这套牺牲掉封面照片和物品的「实体感」——
+          耐用品是有样子的东西，压成表格行之后它就只是一条账目了。建议作为列表页的第二视图共存。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 收尾 ══════════════ -->
+  <section class="close">
+    <h2>我的建议</h2>
+    <p>
+      主推
+      <b>01 硬边</b
+      >：它是你指的那个站真正值钱的部分（构造），剥掉了不该进财务界面的部分（旋转、按位置轮换的配色、纯拉丁展示字）。
+      而且它和你归档的像素沙盒方向是同一套语法，等于把之前那版设计的思路接回来了，只是长大了。
+      <b>04 密档</b> 建议同时做成列表页的表格视图——现在的
+      <code>AssetListPage</code> 已经有 grid/table 双视图开关，骨架是现成的。
+    </p>
+    <p>
+      <b>03 存根</b>
+      我个人最喜欢，但它把暗色主题变成一道难题，而你的产品要求明暗两套等价。
+      如果你愿意接受物品页只有亮色，它值得一试。
+    </p>
+
+    <table class="cost">
+      <thead>
+        <tr>
+          <th>方向</th>
+          <th>落地成本</th>
+          <th>需要改动</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>01 硬边</td>
+          <td class="num">半天</td>
+          <td>
+            <code>theme.css</code> 变量 + 新增
+            <code>data-style</code> 皮肤层，组件代码不动
+          </td>
+        </tr>
+        <tr>
+          <td>02 玻璃</td>
+          <td class="num">0</td>
+          <td>已经在跑</td>
+        </tr>
+        <tr>
+          <td>03 存根</td>
+          <td class="num">1–2 天</td>
+          <td>token 层 + 卡片结构要重做（骑缝、撕口）+ 暗色方案待定</td>
+        </tr>
+        <tr>
+          <td>04 密档</td>
+          <td class="num">半天</td>
+          <td>复用现有 table 视图分支，改样式与列定义</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+</div>

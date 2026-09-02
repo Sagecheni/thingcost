@@ -153,6 +153,26 @@ docker compose up -d
 
 正式发布后应使用明确语义化版本标签，不建议持续跟随 `latest`。
 
+## 8.1 使用 GitHub Container Registry 镜像
+
+推送 `v*.*.*` 标签后，GitHub Actions 会构建并发布 `linux/amd64` 与
+`linux/arm64` 镜像到 GHCR。Arcane 或其他 Docker 面板可直接使用：
+
+```dotenv
+CHRONICLE_IMAGE=ghcr.io/你的 GitHub 用户名/thingcost:v1.0.0
+```
+
+如果仓库为私有仓库，需要在部署主机登录 GHCR，并授予令牌 `read:packages` 权限：
+
+```bash
+echo "$CR_PAT" | docker login ghcr.io -u 你的 GitHub 用户名 --password-stdin
+docker compose pull app worker migrate
+docker compose up -d
+```
+
+公开仓库无需登录。工作流文件为 `.github/workflows/docker-publish.yml`，也可在
+Actions 页面手动发布 `edge` 或指定标签。
+
 ## 9. 停止与排障
 
 停止但保留数据：

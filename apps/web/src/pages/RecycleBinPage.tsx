@@ -1,8 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { RotateCcw, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 
 import { api } from '../lib/api.js';
 import { queryKeys } from '../lib/query-keys.js';
+import { Badge } from '../components/ui/badge.js';
+import { Button } from '../components/ui/button.js';
+import { ConfirmDialog } from '../components/ui/confirm-dialog.js';
+import { EmptyState } from '../components/ui/empty-state.js';
+import { FormError } from '../components/ui/form.js';
+import { StubGhostGrid } from '../components/ui/ledger-skeleton.js';
+import { PageHeader } from '../components/ui/page-header.js';
 
 function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat('zh-CN', {
@@ -33,76 +41,88 @@ export function RecycleBinPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.recycleBin });
     },
   });
+  const busy = restore.isPending || permanentlyDelete.isPending;
+  /* 永久删除要求输入物品名称，由确认面板把关 */
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(
+    null,
+  );
 
   return (
-    <>
-      <header className="topbar page-topbar">
-        <div>
-          <p className="eyebrow">Recycle bin</p>
-          <h1>物品回收站</h1>
-          <p className="muted-copy">
-            删除后的物品保留 30 天。恢复不会改写历史；永久删除不可撤销。
-          </p>
-        </div>
-      </header>
+    <div className="mx-auto flex max-w-4xl flex-col gap-5">
+      <PageHeader
+        eyebrow="Recycle bin"
+        title="物品回收站"
+        description="删除后的物品保留 30 天。恢复不会改写历史；永久删除不可撤销。"
+      />
 
-      {recycleBin.isPending ? <div className="page-loading">正在读取回收站…</div> : null}
-      {recycleBin.isError ? (
-        <div className="form-error">{recycleBin.error.message}</div>
-      ) : null}
-      {restore.isError ? <div className="form-error">{restore.error.message}</div> : null}
-      {permanentlyDelete.isError ? (
-        <div className="form-error">{permanentlyDelete.error.message}</div>
-      ) : null}
+      {recycleBin.isPending ? <StubGhostGrid count={6} /> : null}
+      <FormError>{recycleBin.error?.message}</FormError>
+      <FormError>{restore.error?.message}</FormError>
+      <FormError>{permanentlyDelete.error?.message}</FormError>
 
       {!recycleBin.isPending && (recycleBin.data?.items.length ?? 0) === 0 ? (
-        <div className="empty-state">
-          <span className="empty-pixel">空</span>
-          <h3>回收站是空的</h3>
-          <p>移入回收站的物品会在这里等待恢复或到期清理。</p>
-        </div>
+        <EmptyState
+          title="回收站是空的"
+          description="移入回收站的物品会在这里等待恢复或到期清理。"
+        />
       ) : null}
 
-      <div className="recycle-list">
+      <div className="flex flex-col gap-3">
         {(recycleBin.data?.items ?? []).map((item) => (
-          <article className="recycle-card" key={item.id}>
-            <div>
-              <span className="status-chip">{item.category.name}</span>
-              <h2>{item.name}</h2>
-              <p>移入时间：{formatDateTime(item.deletedAt)}</p>
-              <p>
-                自动清理：
-                {item.purgeAfter ? formatDateTime(item.purgeAfter) : '未安排'}
+          <article
+            data-slot="card"
+            className="flex flex-wrap items-start justify-between gap-3 p-4"
+            key={item.id}
+          >
+            <div className="min-w-0 space-y-1">
+              <Badge variant="outline">{item.category.name}</Badge>
+              <h2 className="text-base font-semibold text-heading">{item.name}</h2>
+              <p data-slot="amount" className="text-xs text-muted-foreground">
+                移入时间：{formatDateTime(item.deletedAt)}
+              </p>
+              <p data-slot="amount" className="text-xs text-muted-foreground">
+                自动清理：{item.purgeAfter ? formatDateTime(item.purgeAfter) : '未安排'}
               </p>
             </div>
-            <div className="recycle-actions">
-              <button
-                className="secondary-action"
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button
+                variant="secondary"
                 type="button"
-                disabled={restore.isPending || permanentlyDelete.isPending}
+                disabled={busy}
                 onClick={() => restore.mutate(item.id)}
               >
-                <RotateCcw size={16} /> 恢复
-              </button>
-              <button
-                className="danger-action"
+                <RotateCcw aria-hidden="true" /> 恢复
+              </Button>
+              <Button
+                variant="destructive"
                 type="button"
-                disabled={restore.isPending || permanentlyDelete.isPending}
-                onClick={() => {
-                  const confirmation = window.prompt(
-                    `永久删除不可恢复。请输入物品名称“${item.name}”确认：`,
-                  );
-                  if (confirmation === item.name) {
-                    permanentlyDelete.mutate({ id: item.id, name: item.name });
-                  }
-                }}
+                disabled={busy}
+                onClick={() => setPendingDelete({ id: item.id, name: item.name })}
               >
-                <Trash2 size={16} /> 永久删除
-              </button>
+                <Trash2 aria-hidden="true" /> 永久删除
+              </Button>
             </div>
           </article>
         ))}
       </div>
-    </>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={pendingDelete ? `永久删除“${pendingDelete.name}”？` : ''}
+        description="物品与其历史将从账中核销，归档不再保留名称记录。"
+        requireText={pendingDelete?.name}
+        requireTextHint="永久删除不可恢复。请输入物品名称原文确认。"
+        confirmLabel="永久删除"
+        pendingLabel="正在核销…"
+        pending={permanentlyDelete.isPending}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (!pendingDelete) return;
+          permanentlyDelete.mutate(pendingDelete, {
+            onSuccess: () => setPendingDelete(null),
+          });
+        }}
+      />
+    </div>
   );
 }

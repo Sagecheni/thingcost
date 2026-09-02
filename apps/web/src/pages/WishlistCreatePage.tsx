@@ -1,13 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, Link2, Plus, Sprout, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
 
 import type { CreateWishlistItemInput } from '@thingcost/contracts';
 
 import { ApiClientError, api } from '../lib/api.js';
+import {
+  currencyLabel,
+  supportedCurrencies,
+  useBaseCurrency,
+} from '../lib/application-settings.js';
 import { localToday, majorToMinor } from '../lib/format.js';
+import { markFresh } from '../lib/fresh-marks.js';
 import { queryKeys } from '../lib/query-keys.js';
+import { Button } from '../components/ui/button.js';
+import {
+  FormError,
+  FormField,
+  FormGrid,
+  Panel,
+  SelectInput,
+  TextArea,
+  TextInput,
+} from '../components/ui/form.js';
 
 interface LinkDraft {
   marketplace: string;
@@ -17,6 +33,7 @@ interface LinkDraft {
 export function WishlistCreatePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const baseCurrency = useBaseCurrency();
   const categoriesQuery = useQuery({
     queryKey: queryKeys.categories,
     queryFn: api.categories,
@@ -24,7 +41,7 @@ export function WishlistCreatePage() {
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [description, setDescription] = useState('');
-  const [currency, setCurrency] = useState('CNY');
+  const [currency, setCurrency] = useState(baseCurrency);
   const [currentPrice, setCurrentPrice] = useState('');
   const [targetPrice, setTargetPrice] = useState('');
   const [budget, setBudget] = useState('');
@@ -33,9 +50,14 @@ export function WishlistCreatePage() {
   const [links, setLinks] = useState<LinkDraft[]>([{ marketplace: '', url: '' }]);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setCurrency((current) => (current === 'CNY' ? baseCurrency : current));
+  }, [baseCurrency]);
+
   const create = useMutation({
     mutationFn: api.createWishlist,
     onSuccess: async (item) => {
+      markFresh(item.id);
       await queryClient.invalidateQueries({ queryKey: queryKeys.wishlistLists });
       await navigate({ to: '/wishlist/$wishlistId', params: { wishlistId: item.id } });
     },
@@ -48,7 +70,7 @@ export function WishlistCreatePage() {
     },
   });
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     const currentPriceMinor = currentPrice ? majorToMinor(currentPrice, currency) : null;
@@ -95,40 +117,35 @@ export function WishlistCreatePage() {
   }
 
   return (
-    <>
-      <Link className="back-link" to="/wishlist">
-        <ArrowLeft size={16} /> 返回种草清单
-      </Link>
-      <header className="topbar page-topbar">
-        <div>
-          <p className="eyebrow">New want</p>
-          <h1>添加种草</h1>
-          <p className="muted-copy">记录想买的东西，也记录为什么现在还不买。</p>
-        </div>
+    <div className="mx-auto flex max-w-5xl flex-col gap-5">
+      <header className="flex flex-col gap-2 border-b border-border pb-5">
+        <Link
+          className="inline-flex w-fit items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          to="/wishlist"
+        >
+          <ArrowLeft aria-hidden="true" className="size-4" /> 返回种草清单
+        </Link>
+        <p data-slot="ledger-label">New want</p>
+        <h1 className="text-2xl font-semibold text-heading">添加种草</h1>
+        <p className="text-sm text-muted-foreground">
+          记录想买的东西，也记录为什么现在还不买。
+        </p>
       </header>
-      <form className="wishlist-create-layout" onSubmit={submit}>
-        <div className="wishlist-form-main">
-          <section className="form-card wishlist-form-card">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">The object</p>
-                <h2>物品信息</h2>
-              </div>
-              <Sprout size={20} />
-            </div>
-            <div className="form-grid">
-              <label>
-                名称 *
-                <input
+
+      <form className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]" onSubmit={submit}>
+        <div className="flex min-w-0 flex-col gap-4">
+          <Panel eyebrow="The object" title="物品信息">
+            <FormGrid>
+              <FormField label="名称 *">
+                <TextInput
                   required
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="例如：机械键盘"
                 />
-              </label>
-              <label>
-                分类 *
-                <select
+              </FormField>
+              <FormField label="分类 *">
+                <SelectInput
                   required
                   value={categoryId}
                   onChange={(event) => setCategoryId(event.target.value)}
@@ -139,77 +156,68 @@ export function WishlistCreatePage() {
                       {category.name}
                     </option>
                   ))}
-                </select>
-              </label>
-            </div>
-            <label>
-              备注
-              <textarea
+                </SelectInput>
+              </FormField>
+            </FormGrid>
+            <FormField label="备注">
+              <TextArea
+                rows={3}
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder="为什么想要、等待什么条件"
               />
-            </label>
-          </section>
-          <section className="form-card wishlist-form-card">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Price intention</p>
-                <h2>价格与计划</h2>
-              </div>
-            </div>
-            <div className="form-grid">
-              <label>
-                价格币种
-                <select
+            </FormField>
+          </Panel>
+
+          <Panel eyebrow="Price intention" title="价格与计划">
+            <FormGrid>
+              <FormField label="价格币种">
+                <SelectInput
                   value={currency}
                   onChange={(event) => setCurrency(event.target.value)}
                 >
-                  <option value="CNY">CNY · 人民币</option>
-                  <option value="USD">USD · 美元</option>
-                  <option value="EUR">EUR · 欧元</option>
-                  <option value="JPY">JPY · 日元</option>
-                  <option value="HKD">HKD · 港币</option>
-                </select>
-              </label>
-              <label>
-                当前价格（可选）
-                <input
+                  {[baseCurrency, ...supportedCurrencies]
+                    .filter((value, index, all) => all.indexOf(value) === index)
+                    .map((value) => (
+                      <option value={value} key={value}>
+                        {currencyLabel(value)}
+                      </option>
+                    ))}
+                </SelectInput>
+              </FormField>
+              <FormField label="当前价格（可选）">
+                <TextInput
                   inputMode="decimal"
                   value={currentPrice}
                   onChange={(event) => setCurrentPrice(event.target.value)}
                   placeholder="0.00"
                 />
-              </label>
-              <label>
-                目标价格（可选）
-                <input
+              </FormField>
+              <FormField label="目标价格（可选）">
+                <TextInput
                   inputMode="decimal"
                   value={targetPrice}
                   onChange={(event) => setTargetPrice(event.target.value)}
                   placeholder="0.00"
                 />
-              </label>
-              <label>
-                预算上限（可选）
-                <input
+              </FormField>
+              <FormField label="预算上限（可选）">
+                <TextInput
                   inputMode="decimal"
                   value={budget}
                   onChange={(event) => setBudget(event.target.value)}
                   placeholder="0.00"
                 />
-              </label>
-              <label>
-                计划购买日期
-                <input
+              </FormField>
+              <FormField label="计划购买日期">
+                <TextInput
                   type="date"
                   value={plannedPurchaseDate}
                   onChange={(event) => setPlannedPurchaseDate(event.target.value)}
                 />
-              </label>
-              <label>
-                优先级
-                <select
+              </FormField>
+              <FormField label="优先级">
+                <SelectInput
                   value={priority}
                   onChange={(event) =>
                     setPriority(event.target.value as CreateWishlistItemInput['priority'])
@@ -218,26 +226,27 @@ export function WishlistCreatePage() {
                   <option value="high">优先 · 近期想解决</option>
                   <option value="medium">想要 · 等合适时机</option>
                   <option value="low">随缘 · 先记录</option>
-                </select>
-              </label>
-            </div>
-          </section>
-          <section className="form-card wishlist-form-card">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Sources</p>
-                <h2>平台链接</h2>
-              </div>
-              <Link2 size={20} />
-            </div>
-            <p className="micro-copy">
-              只保存链接，不保存平台登录信息；价格由你手工记录。
-            </p>
-            <div className="wishlist-link-drafts">
+                </SelectInput>
+              </FormField>
+            </FormGrid>
+          </Panel>
+
+          <Panel
+            eyebrow="Sources"
+            title="平台链接"
+            description="只保存链接，不保存平台登录信息；价格由你手工记录。"
+          >
+            <div className="flex flex-col gap-2">
               {links.map((link, index) => (
-                <div className="wishlist-link-draft" key={index}>
-                  <span className="wishlist-link-number">{index + 1}</span>
-                  <input
+                <div className="flex items-center gap-2" key={index}>
+                  <span
+                    data-slot="amount"
+                    className="w-5 shrink-0 text-xs text-muted-foreground"
+                  >
+                    {index + 1}
+                  </span>
+                  <TextInput
+                    className="basis-32"
                     value={link.marketplace}
                     onChange={(event) =>
                       setLinks((current) =>
@@ -249,8 +258,9 @@ export function WishlistCreatePage() {
                       )
                     }
                     placeholder="平台名称"
+                    aria-label={`平台 ${index + 1} 名称`}
                   />
-                  <input
+                  <TextInput
                     type="url"
                     value={link.url}
                     onChange={(event) =>
@@ -263,9 +273,11 @@ export function WishlistCreatePage() {
                       )
                     }
                     placeholder="https://…"
+                    aria-label={`平台 ${index + 1} 链接`}
                   />
-                  {links.length > 1 && (
+                  {links.length > 1 ? (
                     <button
+                      className="flex size-9 shrink-0 items-center justify-center border border-border text-muted-foreground hover:border-destructive/50 hover:text-destructive"
                       type="button"
                       title="删除链接"
                       aria-label="删除链接"
@@ -275,41 +287,43 @@ export function WishlistCreatePage() {
                         )
                       }
                     >
-                      <Trash2 size={15} />
+                      <Trash2 aria-hidden="true" className="size-4" />
                     </button>
-                  )}
+                  ) : null}
                 </div>
               ))}
             </div>
-            <button
-              className="secondary-action"
+            <Button
+              variant="secondary"
+              size="sm"
+              className="w-fit"
               type="button"
               onClick={() =>
                 setLinks((current) => [...current, { marketplace: '', url: '' }])
               }
               disabled={links.length >= 20}
             >
-              <Plus size={15} /> 添加平台链接
-            </button>
-          </section>
+              <Plus aria-hidden="true" /> 添加平台链接
+            </Button>
+          </Panel>
         </div>
-        <aside className="wishlist-submit-panel">
-          <span className="wishlist-panel-mark">
-            <Sprout size={23} />
-          </span>
-          <p className="eyebrow">A patient list</p>
-          <h2>{name || '未命名种草'}</h2>
-          <p>
-            {currentPrice ? `当前 ${currency} ${currentPrice}` : '还没有当前价格'}
-            {plannedPurchaseDate ? ` · ${plannedPurchaseDate} 计划` : ''}
-          </p>
-          {error && <div className="form-error">{error}</div>}
-          <button className="primary-action" type="submit" disabled={create.isPending}>
+
+        <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-6 lg:self-start">
+          <Panel eyebrow="A patient list" title={name || '未命名种草'}>
+            <p data-slot="amount" className="text-sm text-muted-foreground">
+              {currentPrice ? `当前 ${currency} ${currentPrice}` : '还没有当前价格'}
+              {plannedPurchaseDate ? ` · ${plannedPurchaseDate} 计划` : ''}
+            </p>
+          </Panel>
+          <FormError>{error}</FormError>
+          <Button type="submit" disabled={create.isPending}>
             {create.isPending ? '保存中…' : '保存种草'}
-          </button>
-          <small>保存后可以上传封面、记录价格变化，或在合适时转为正式物品。</small>
+          </Button>
+          <small className="text-xs text-muted-foreground">
+            保存后可以上传封面、记录价格变化，或在合适时转为正式物品。
+          </small>
         </aside>
       </form>
-    </>
+    </div>
   );
 }

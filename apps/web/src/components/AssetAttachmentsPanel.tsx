@@ -7,6 +7,7 @@ import {
   FileText,
   ImagePlus,
   Images,
+  Pencil,
   Star,
   Trash2,
 } from 'lucide-react';
@@ -17,8 +18,12 @@ import type {
   AssetDetail,
   UpdateAssetAttachmentInput,
 } from '@thingcost/contracts';
+import { cn } from '@thingcost/ui';
 
 import { api } from '../lib/api.js';
+import { Button, buttonVariants } from './ui/button.js';
+import { ConfirmDialog } from './ui/confirm-dialog.js';
+import { FormError, Panel } from './ui/form.js';
 
 interface AssetAttachmentsPanelProps {
   asset: AssetDetail;
@@ -37,11 +42,28 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1_048_576).toFixed(1)} MB`;
 }
 
+/* 上传入口是 label 包着隐藏的 file input —— 按钮样式借 buttonVariants，
+ * 不新造一套。 */
+const uploadTrigger = cn(
+  buttonVariants({ variant: 'secondary', size: 'sm' }),
+  'cursor-pointer [&>input]:sr-only',
+);
+
+/* 缩略图上的小操作：贴在卡片底部一条，不用悬停才出现 ——
+ * 产品要求信息不依赖悬停。 */
+const tileAction = cn(
+  'flex size-7 items-center justify-center border border-border bg-card',
+  'text-muted-foreground transition duration-150',
+  'hover:border-border-strong hover:text-foreground',
+  'disabled:pointer-events-none disabled:opacity-40',
+);
+
 export function AssetAttachmentsPanel({ asset, onUpdated }: AssetAttachmentsPanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [editingCaptionId, setEditingCaptionId] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
+  const [pendingRemove, setPendingRemove] = useState<AssetAttachment | null>(null);
   const photos = asset.attachments.filter((attachment) => attachment.kind === 'photo');
   const documents = asset.attachments.filter(
     (attachment) => attachment.kind === 'document',
@@ -117,26 +139,44 @@ export function AssetAttachmentsPanel({ asset, onUpdated }: AssetAttachmentsPane
     deleteMutation.isPending;
 
   const removeAttachment = (attachment: AssetAttachment) => {
-    if (
-      window.confirm(
-        `确定删除“${attachment.originalName}”吗？此操作会同时删除私有存储中的文件。`,
-      )
-    ) {
-      deleteMutation.mutate(attachment.id);
-    }
+    setPendingRemove(attachment);
   };
 
+  const captionEditor = (attachmentId: string) => (
+    <form
+      className="flex gap-2 pt-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        updateMutation.mutate({
+          attachmentId,
+          input: { caption: caption.trim() || null },
+        });
+      }}
+    >
+      <input
+        data-slot="field"
+        className="h-8 min-w-0 flex-1 px-2 text-xs text-foreground focus-visible:outline-none"
+        value={caption}
+        onChange={(event) => setCaption(event.target.value)}
+        placeholder="照片说明"
+        maxLength={500}
+        autoFocus
+      />
+      <Button size="sm" className="h-8 shrink-0" disabled={updateMutation.isPending}>
+        保存
+      </Button>
+    </form>
+  );
+
   return (
-    <section className="attachment-panel">
-      <div className="attachment-heading">
-        <div>
-          <p className="eyebrow">Private archive</p>
-          <h2>影像与凭证</h2>
-          <p className="muted-copy">文件保存在私有目录中，只有登录后才能读取。</p>
-        </div>
-        <div className="attachment-actions">
-          <label className="secondary-action upload-action">
-            <ImagePlus size={16} />
+    <Panel
+      eyebrow="Private archive"
+      title="影像与凭证"
+      description="文件保存在私有目录中，只有登录后才能读取。"
+      action={
+        <>
+          <label className={uploadTrigger}>
+            <ImagePlus aria-hidden="true" />
             {uploadMutation.isPending ? '正在上传…' : '上传文件'}
             <input
               ref={fileInputRef}
@@ -147,8 +187,8 @@ export function AssetAttachmentsPanel({ asset, onUpdated }: AssetAttachmentsPane
               disabled={busy}
             />
           </label>
-          <label className="secondary-action upload-action attachment-camera-action">
-            <Camera size={16} /> 拍照
+          <label className={uploadTrigger}>
+            <Camera aria-hidden="true" /> 拍照
             <input
               ref={cameraInputRef}
               type="file"
@@ -158,49 +198,65 @@ export function AssetAttachmentsPanel({ asset, onUpdated }: AssetAttachmentsPane
               disabled={busy}
             />
           </label>
-        </div>
-      </div>
-
+        </>
+      }
+    >
       {asset.attachments.length === 0 ? (
         <button
           type="button"
-          className="attachment-empty"
+          className={cn(
+            'flex flex-col items-center justify-center gap-2 border border-dashed',
+            'border-border bg-muted/35 px-6 py-10 text-center',
+            'hover:border-border-strong disabled:pointer-events-none disabled:opacity-45',
+          )}
           onClick={() => fileInputRef.current?.click()}
           disabled={busy}
         >
-          <Images size={28} />
-          <strong>添加第一张照片或凭证</strong>
-          <span>支持 JPEG、PNG、WebP、GIF 与 PDF；单文件限制以服务端设置为准。</span>
+          <Images aria-hidden="true" className="size-7 text-muted-foreground" />
+          <strong className="text-sm font-medium text-heading">
+            添加第一张照片或凭证
+          </strong>
+          <span className="text-xs text-muted-foreground">
+            支持 JPEG、PNG、WebP、GIF 与 PDF；单文件限制以服务端设置为准。
+          </span>
         </button>
       ) : (
         <>
-          {cover && (
-            <div className="attachment-cover-layout">
+          {cover ? (
+            <div className="flex flex-col gap-4 sm:flex-row">
               <a
-                className="attachment-cover"
+                className="relative block shrink-0 border border-border"
                 href={cover.contentUrl}
                 target="_blank"
                 rel="noreferrer"
+                data-slot="photo-mount"
               >
+                {/* 真实照片保持原样，不做任何滤镜或像素化 */}
                 <img
+                  className="block h-40 w-full object-cover sm:w-56"
                   src={cover.thumbnailUrl ?? cover.contentUrl}
                   alt={cover.caption || `${asset.name}封面`}
                 />
-                <span>
-                  <Star size={13} fill="currentColor" /> 当前封面
+                <span className="absolute bottom-0 left-0 flex items-center gap-1 bg-primary px-2 py-0.5 text-[11px] text-primary-foreground">
+                  <Star aria-hidden="true" className="size-3" fill="currentColor" />
+                  当前封面
                 </span>
               </a>
-              <div className="attachment-cover-copy">
-                <p className="eyebrow">Cover memory</p>
-                <h3>{cover.caption || cover.originalName}</h3>
-                <p>
+              <div className="min-w-0 flex-1 space-y-1">
+                <p data-slot="ledger-label">Cover memory</p>
+                <h3 className="text-sm font-semibold text-heading">
+                  {cover.caption || cover.originalName}
+                </h3>
+                <p data-slot="amount" className="text-xs text-muted-foreground">
                   {cover.width && cover.height
                     ? `${String(cover.width)} × ${String(cover.height)} · `
                     : ''}
                   {formatBytes(cover.sizeBytes)}
                 </p>
-                <button
-                  className="text-action"
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="h-auto p-0"
                   type="button"
                   onClick={() => {
                     setEditingCaptionId(cover.id);
@@ -208,35 +264,55 @@ export function AssetAttachmentsPanel({ asset, onUpdated }: AssetAttachmentsPane
                   }}
                 >
                   编辑说明
-                </button>
+                </Button>
               </div>
             </div>
-          )}
+          ) : null}
 
-          {photos.length > 0 && (
-            <div className="attachment-subsection">
-              <div className="attachment-subheading">
-                <h3>照片</h3>
-                <span>{photos.length} 张</span>
+          {photos.length > 0 ? (
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <h3 data-slot="ledger-label">照片</h3>
+                <span data-slot="amount" className="text-xs text-muted-foreground">
+                  {photos.length} 张
+                </span>
               </div>
-              <div className="attachment-gallery">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {photos.map((photo, index) => (
-                  <article className={photo.isCover ? 'is-cover' : ''} key={photo.id}>
-                    <a href={photo.contentUrl} target="_blank" rel="noreferrer">
+                  <article
+                    className={cn(
+                      'flex flex-col border border-border',
+                      photo.isCover && 'border-primary',
+                    )}
+                    key={photo.id}
+                  >
+                    <a
+                      href={photo.contentUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      data-slot="photo-mount"
+                    >
                       <img
+                        className="block h-32 w-full object-cover"
                         src={photo.thumbnailUrl ?? photo.contentUrl}
                         alt={photo.caption || photo.originalName}
                         loading="lazy"
                       />
                     </a>
-                    <div className="attachment-card-copy">
-                      <strong>{photo.caption || photo.originalName}</strong>
-                      <small>{formatBytes(photo.sizeBytes)}</small>
+                    <div className="min-w-0 space-y-0.5 px-2.5 pt-2">
+                      <strong className="block truncate text-xs font-medium text-heading">
+                        {photo.caption || photo.originalName}
+                      </strong>
+                      <small data-slot="amount" className="text-xs text-muted-foreground">
+                        {formatBytes(photo.sizeBytes)}
+                      </small>
                     </div>
-                    <div className="attachment-card-actions">
+                    <div className="flex flex-wrap gap-1 px-2.5 pt-2 pb-2.5">
                       <button
+                        className={tileAction}
                         type="button"
                         title="前移"
+                        aria-label="前移"
                         disabled={busy || index === 0}
                         onClick={() => {
                           const neighbor = photos[index - 1];
@@ -244,11 +320,13 @@ export function AssetAttachmentsPanel({ asset, onUpdated }: AssetAttachmentsPane
                             reorderMutation.mutate({ current: photo, neighbor });
                         }}
                       >
-                        <ChevronLeft size={14} />
+                        <ChevronLeft aria-hidden="true" className="size-3.5" />
                       </button>
                       <button
+                        className={tileAction}
                         type="button"
                         title="后移"
+                        aria-label="后移"
                         disabled={busy || index === photos.length - 1}
                         onClick={() => {
                           const neighbor = photos[index + 1];
@@ -256,12 +334,14 @@ export function AssetAttachmentsPanel({ asset, onUpdated }: AssetAttachmentsPane
                             reorderMutation.mutate({ current: photo, neighbor });
                         }}
                       >
-                        <ChevronRight size={14} />
+                        <ChevronRight aria-hidden="true" className="size-3.5" />
                       </button>
-                      {!photo.isCover && (
+                      {!photo.isCover ? (
                         <button
+                          className={tileAction}
                           type="button"
                           title="设为封面"
+                          aria-label="设为封面"
                           disabled={busy}
                           onClick={() =>
                             updateMutation.mutate({
@@ -270,123 +350,124 @@ export function AssetAttachmentsPanel({ asset, onUpdated }: AssetAttachmentsPane
                             })
                           }
                         >
-                          <Star size={14} />
+                          <Star aria-hidden="true" className="size-3.5" />
                         </button>
-                      )}
+                      ) : null}
                       <button
+                        className={tileAction}
                         type="button"
                         title="编辑说明"
+                        aria-label="编辑说明"
                         disabled={busy}
                         onClick={() => {
                           setEditingCaptionId(photo.id);
                           setCaption(photo.caption ?? '');
                         }}
                       >
-                        编
+                        <Pencil aria-hidden="true" className="size-3.5" />
                       </button>
                       <button
-                        className="danger-icon"
+                        className={cn(
+                          tileAction,
+                          'hover:border-destructive/50 hover:text-destructive',
+                        )}
                         type="button"
                         title="删除照片"
+                        aria-label="删除照片"
                         disabled={busy}
                         onClick={() => removeAttachment(photo)}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 aria-hidden="true" className="size-3.5" />
                       </button>
                     </div>
-                    {editingCaptionId === photo.id && (
-                      <form
-                        className="attachment-caption-editor"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          updateMutation.mutate({
-                            attachmentId: photo.id,
-                            input: { caption: caption.trim() || null },
-                          });
-                        }}
-                      >
-                        <input
-                          value={caption}
-                          onChange={(event) => setCaption(event.target.value)}
-                          placeholder="照片说明"
-                          maxLength={500}
-                          autoFocus
-                        />
-                        <button disabled={updateMutation.isPending}>保存</button>
-                      </form>
-                    )}
+                    {editingCaptionId === photo.id ? (
+                      <div className="px-2.5 pb-2.5">{captionEditor(photo.id)}</div>
+                    ) : null}
                   </article>
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
 
-          {documents.length > 0 && (
-            <div className="attachment-subsection">
-              <div className="attachment-subheading">
-                <h3>凭证与文档</h3>
-                <span>{documents.length} 份</span>
+          {documents.length > 0 ? (
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <h3 data-slot="ledger-label">凭证与文档</h3>
+                <span data-slot="amount" className="text-xs text-muted-foreground">
+                  {documents.length} 份
+                </span>
               </div>
-              <div className="attachment-documents">
+              <ul className="flex flex-col">
                 {documents.map((document) => (
-                  <article key={document.id}>
-                    <span className="document-icon">
-                      <FileText size={19} />
-                    </span>
-                    <div>
-                      <strong>{document.caption || document.originalName}</strong>
-                      <small>PDF · {formatBytes(document.sizeBytes)}</small>
+                  <li
+                    className="flex items-center gap-3 border-b border-dashed border-border py-2.5 last:border-0"
+                    key={document.id}
+                  >
+                    <FileText
+                      aria-hidden="true"
+                      className="size-[19px] shrink-0 text-muted-foreground"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <strong className="block truncate text-sm font-medium text-heading">
+                        {document.caption || document.originalName}
+                      </strong>
+                      <small data-slot="amount" className="text-xs text-muted-foreground">
+                        PDF · {formatBytes(document.sizeBytes)}
+                      </small>
                     </div>
                     <a
+                      className={tileAction}
                       href={document.contentUrl}
                       target="_blank"
                       rel="noreferrer"
                       title="下载"
+                      aria-label="下载"
                     >
-                      <Download size={16} />
+                      <Download aria-hidden="true" className="size-4" />
                     </a>
                     <button
-                      className="danger-icon"
+                      className={cn(
+                        tileAction,
+                        'hover:border-destructive/50 hover:text-destructive',
+                      )}
                       type="button"
                       title="删除文档"
+                      aria-label="删除文档"
                       disabled={busy}
                       onClick={() => removeAttachment(document)}
                     >
-                      <Trash2 size={15} />
+                      <Trash2 aria-hidden="true" className="size-4" />
                     </button>
-                  </article>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
-          )}
+          ) : null}
         </>
       )}
 
-      {editingCaptionId === cover?.id &&
-        !photos.some((photo) => photo.id === cover.id) && (
-          <form
-            className="attachment-caption-editor"
-            onSubmit={(event) => {
-              event.preventDefault();
-              updateMutation.mutate({
-                attachmentId: cover.id,
-                input: { caption: caption.trim() || null },
-              });
-            }}
-          >
-            <input
-              value={caption}
-              onChange={(event) => setCaption(event.target.value)}
-              maxLength={500}
-            />
-            <button disabled={updateMutation.isPending}>保存</button>
-          </form>
-        )}
-      {error && (
-        <p className="form-error" role="alert">
-          {error}
-        </p>
-      )}
-    </section>
+      {/* 封面不在照片列表里时（比如封面是文档），说明编辑器单独挂在面板底部 */}
+      {editingCaptionId === cover?.id && !photos.some((photo) => photo.id === cover.id)
+        ? captionEditor(cover.id)
+        : null}
+
+      <FormError>{error}</FormError>
+
+      <ConfirmDialog
+        open={pendingRemove !== null}
+        title={pendingRemove ? `删除“${pendingRemove.originalName}”？` : ''}
+        description="此操作会同时删除私有存储中的文件，附件不再可恢复。"
+        confirmLabel="删除"
+        pendingLabel="正在删除…"
+        pending={deleteMutation.isPending}
+        onCancel={() => setPendingRemove(null)}
+        onConfirm={() => {
+          if (!pendingRemove) return;
+          deleteMutation.mutate(pendingRemove.id, {
+            onSuccess: () => setPendingRemove(null),
+          });
+        }}
+      />
+    </Panel>
   );
 }

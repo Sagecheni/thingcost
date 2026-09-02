@@ -15,10 +15,11 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
-    "db:generate": "pnpm --filter @thingcost/database db:generate",
-    "db:migrate": "pnpm --filter @thingcost/database db:migrate",
-    "db:studio": "pnpm --filter @thingcost/database db:studio"
+    "check": "pnpm tokens:check && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "tokens:check": "tsx scripts/check-theme-tokens.ts",
+    "db:generate": "dotenv -e .env -- pnpm --filter @thingcost/database db:generate",
+    "db:migrate": "dotenv -e .env -- pnpm --filter @thingcost/database db:migrate",
+    "db:studio": "dotenv -e .env -- pnpm --filter @thingcost/database db:studio"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

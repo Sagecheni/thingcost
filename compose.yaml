@@ -51,7 +51,7 @@ services:
   migrate:
     build:
       context: .
-    image: chronicle:local
+    image: ${CHRONICLE_IMAGE:-chronicle:local}
     command: ['node', 'api/dist/cli/migrate.js']
     environment: *app-environment
     depends_on:
@@ -63,7 +63,7 @@ services:
 
   app:
     <<: *app-security
-    image: chronicle:local
+    image: ${CHRONICLE_IMAGE:-chronicle:local}
     environment: *app-environment
     ports:
       - '${CHRONICLE_PORT:-3000}:3000'
@@ -90,7 +90,7 @@ services:
 
   worker:
     <<: *app-security
-    image: chronicle:local
+    image: ${CHRONICLE_IMAGE:-chronicle:local}
     command: ['node', 'worker/dist/main.js']
     environment: *app-environment
     depends_on:

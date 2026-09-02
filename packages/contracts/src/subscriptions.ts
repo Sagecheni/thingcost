@@ -180,6 +180,16 @@ export const createSubscriptionSchema = subscriptionFieldsSchema.superRefine(
         message: '数字许可请使用 one_time 计费周期',
       });
     }
+    if (
+      input.kind === 'digital_license' &&
+      (input.status === 'trial' || input.status === 'paused')
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['status'],
+        message: '数字许可不支持试用或暂停状态',
+      });
+    }
     if (input.kind === 'subscription' && input.billingCycle === 'one_time') {
       context.addIssue({
         code: 'custom',
@@ -199,6 +209,21 @@ export const createSubscriptionSchema = subscriptionFieldsSchema.superRefine(
 
 export const updateSubscriptionSchema = subscriptionFieldsSchema
   .partial()
+  .extend({
+    vendor: z.string().trim().max(120).nullable().optional(),
+    categoryLabel: z.string().trim().max(80).nullable().optional(),
+    customIntervalDays: z.number().int().min(1).max(3660).nullable().optional(),
+    discountEndsOn: isoDateSchema.nullable().optional(),
+    seats: z.number().int().min(1).max(100_000).nullable().optional(),
+    startedOn: isoDateSchema.nullable().optional(),
+    trialEndsOn: isoDateSchema.nullable().optional(),
+    nextBillingOn: isoDateSchema.nullable().optional(),
+    cancelledOn: isoDateSchema.nullable().optional(),
+    expiresOn: isoDateSchema.nullable().optional(),
+    accountHint: z.string().trim().max(160).nullable().optional(),
+    passwordManagerUrl: z.url().nullable().optional(),
+    notes: z.string().trim().max(4_000).nullable().optional(),
+  })
   .superRefine((input, context) => {
     if (
       input.kind === 'digital_license' &&
@@ -211,6 +236,16 @@ export const updateSubscriptionSchema = subscriptionFieldsSchema
         message: '数字许可请使用 one_time 计费周期',
       });
     }
+    if (
+      input.kind === 'digital_license' &&
+      (input.status === 'trial' || input.status === 'paused')
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['status'],
+        message: '数字许可不支持试用或暂停状态',
+      });
+    }
     if (input.kind === 'subscription' && input.billingCycle === 'one_time') {
       context.addIssue({
         code: 'custom',
@@ -218,7 +253,7 @@ export const updateSubscriptionSchema = subscriptionFieldsSchema
         message: '周期订阅不能使用 one_time',
       });
     }
-    if (input.billingCycle === 'custom' && input.customIntervalDays === undefined) {
+    if (input.billingCycle === 'custom' && input.customIntervalDays == null) {
       context.addIssue({
         code: 'custom',
         path: ['customIntervalDays'],

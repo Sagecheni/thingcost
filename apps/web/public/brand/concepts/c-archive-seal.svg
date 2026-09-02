@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">档案印记</title>
+  <desc id="desc">两枚对角咬合的档案角围住一枚朱红校注印，组成可重复使用的品牌印记。</desc>
+  <path fill="#12324E" d="M146 146H754V206H878V878H270V818H146Z" />
+  <path fill="#FAF8F1" d="M270 278H600V390H382V610H270Z" />
+  <path fill="#FAF8F1" d="M754 746H424V634H642V414H754Z" />
+  <path fill="#B1372C" d="M452 452H572V572H452Z" />
+  <path fill="#FAF8F1" d="M492 492H532V532H492Z" />
+</svg>

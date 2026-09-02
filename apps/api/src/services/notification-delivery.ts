@@ -7,6 +7,7 @@ import type {
   ResolvedChannel,
   ServerchanChannelConfig,
   PushplusChannelConfig,
+  BarkChannelConfig,
   TelegramChannelConfig,
   WebhookChannelConfig,
   WecomChannelConfig,
@@ -30,7 +31,15 @@ async function requestProvider(
   });
   const body = await response.text();
   if (!response.ok) {
-    throw new Error(`通知渠道 HTTP ${String(response.status)}`);
+    const excerpt = body.replace(/\s+/gu, ' ').slice(0, 240);
+    if (response.status === 400 && body.includes('failed to get device token')) {
+      throw new Error(
+        'Bark 服务未找到该 Device Key。请确认服务地址与 Device Key 属于同一个 Bark 实例，并先在该实例中注册设备。',
+      );
+    }
+    throw new Error(
+      `通知渠道 HTTP ${String(response.status)}${excerpt ? `：${excerpt}` : ''}`,
+    );
   }
   return { status: response.status, body };
 }
@@ -125,6 +134,41 @@ async function sendPushplus(
   return result;
 }
 
+async function sendBark(configuration: BarkChannelConfig): Promise<ProviderResponse> {
+  const result = await requestProvider(
+    configuration.serverUrl.replace(/\/+$/u, '') + '/push',
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json; charset=utf-8' },
+      body: JSON.stringify({
+        device_key: configuration.deviceKey,
+        title: TEST_TITLE,
+        body: TEST_TEXT,
+        ...(configuration.group ? { group: configuration.group } : {}),
+        ...(configuration.sound ? { sound: configuration.sound } : {}),
+      }),
+    },
+  );
+  const code = parseJson(result.body)?.code;
+  if (
+    (typeof code === 'number' && code !== 200) ||
+    (typeof code === 'string' && code !== '200')
+  ) {
+    const providerMessage = parseJson(result.body)?.message;
+    if (
+      code === 400 &&
+      typeof providerMessage === 'string' &&
+      providerMessage.includes('failed to get device token')
+    ) {
+      throw new Error(
+        'Bark 服务未找到该 Device Key。请确认服务地址与 Device Key 属于同一个 Bark 实例，并先在该实例中注册设备。',
+      );
+    }
+    throw new Error(`Bark 拒绝了测试消息（错误码 ${String(code)}）`);
+  }
+  return result;
+}
+
 async function sendServerchan(
   configuration: ServerchanChannelConfig,
 ): Promise<ProviderResponse> {
@@ -158,7 +202,9 @@ export async function sendNotificationChannelTest(
           ? await sendWecom(channel.configuration as WecomChannelConfig)
           : channel.provider === 'serverchan'
             ? await sendServerchan(channel.configuration as ServerchanChannelConfig)
-            : await sendPushplus(channel.configuration as PushplusChannelConfig);
+            : channel.provider === 'pushplus'
+              ? await sendPushplus(channel.configuration as PushplusChannelConfig)
+              : await sendBark(channel.configuration as BarkChannelConfig);
 
   return {
     success: true,

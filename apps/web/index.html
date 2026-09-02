@@ -3,17 +3,42 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0d0f11" />
+    <meta name="theme-color" content="#141109" />
     <meta name="description" content="物纪 Chronicle——记录每一件拥有的时间与价值。" />
+    <link rel="icon" type="image/svg+xml" href="/brand/chronicle-favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/brand/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png" />
     <title>物纪 · Chronicle</title>
+    <script>
+      /* 首帧前定好档案载体与明暗，否则 React 挂载前会先闪一下基线皮
+       * （基线 = 当票 · 碑拓）。两个维度正交，各存各的 key。 */
+      (function () {
+        var root = document.documentElement;
+        try {
+          var theme = localStorage.getItem('chronicle-theme');
+          var style = localStorage.getItem('chronicle-style');
+          root.dataset.theme =
+            theme === 'light' || theme === 'dark' || theme === 'system'
+              ? theme
+              : 'system';
+          root.dataset.style = style === 'indigo' ? 'indigo' : 'ticket';
+        } catch (error) {
+          /* 隐私模式下 localStorage 会抛错。降级到默认载体，不影响可用性。 */
+          root.dataset.theme = 'system';
+          root.dataset.style = 'ticket';
+        }
+      })();
+    </script>
   </head>
   <body>
     <!--
-      THESIS: Chronicle's Dashboard is a precise personal-asset report: held net investment, daily holding cost, asset territory, trends, and actionable exceptions lead every visual decision.
-      OWN-WORLD: near-black canvas, charcoal report surfaces, warm-gold core values, restrained semantic colors, exact rankings, and one highly readable sans family.
-      STORY: the administrator reads total held investment, sees what ownership costs each day, understands where value is concentrated, and identifies which assets need attention.
-      FIRST VIEWPORT: a dark report rail anchors the left; a compact title and action lead into one dominant asset overview, followed by asset territory and report trends.
-      FORM: original Chronicle report informed by public Guifou patterns but not a clone; concept seed USER-PINNED-ASSET-REPORT.
+      THESIS: Chronicle is a ledger. Every possession is a stub; its daily cost is the face value; unknown cost is annotated in red, never rendered as zero.
+      OWN-WORLD: two archival lineages, each with a positive and a negative — stub (paper receipt / microfiche negative) and blueprint (whiteprint / cyanotype); square edges, ruled paper, monospace figures, blue-black ink for entries and vermilion for annotation.
+      STORY: the administrator reads what ownership costs per day, sees which items carry the most, and spots what still needs recording.
+      FIRST VIEWPORT: a ruled sheet holds one dominant face value, followed by the daily-cost readings and the stepped net-investment ledger line.
+      FORM: original Chronicle ledger language; carriers drawn from real archival stock, not from any product's interface.
       FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
     -->
     <div id="root"></div>

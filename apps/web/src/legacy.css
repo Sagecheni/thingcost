@@ -1,9 +1,0 @@
-/* 遗留样式的降级入口。
- *
- * 三个文件全部塞进 legacy 层，排在 Tailwind 的 base 之后、components 之前
- * （顺序在 theme.css 顶部声明）。改造完一个页面就少一批依赖，
- * 22 个页面全部迁完后，本文件和它引用的三个 CSS 一起删除。 */
-
-@import './styles.css' layer(legacy);
-@import './pixel-theme.css' layer(legacy);
-@import './dashboard-report.css' layer(legacy);

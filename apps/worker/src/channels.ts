@@ -7,16 +7,23 @@ export type WebhookChannelConfig = { url: string; secret?: string };
 export type WecomChannelConfig = { webhookUrl: string };
 export type ServerchanChannelConfig = { sendKey: string };
 export type PushplusChannelConfig = { token: string; topic?: string };
+export type BarkChannelConfig = {
+  serverUrl: string;
+  deviceKey: string;
+  group?: string;
+  sound?: string;
+};
 export type ProviderChannelConfig =
   | TelegramChannelConfig
   | WebhookChannelConfig
   | WecomChannelConfig
   | ServerchanChannelConfig
-  | PushplusChannelConfig;
+  | PushplusChannelConfig
+  | BarkChannelConfig;
 
 export interface WorkerChannel {
   key: string;
-  provider: 'telegram' | 'webhook' | 'wecom' | 'serverchan' | 'pushplus';
+  provider: 'telegram' | 'webhook' | 'wecom' | 'serverchan' | 'pushplus' | 'bark';
   name: string;
   enabled: boolean;
   isDefault: boolean;

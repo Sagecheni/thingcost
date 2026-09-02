@@ -1,22 +1,32 @@
 /* 物纪 · Chronicle — Token 层
  *
- * 方向：深色玻璃卡片（参考 yantao.wiki）。
- *   暗色为主 · 16px 圆角 · 大柔光阴影 · 半透明卡片 · 背景渐变晕染 · 多强调色
+ * 方向：当票（典当行凭证的物理形态）。每件物品是一张当票，日均成本是票面金额，
+ *      未知成本用朱砂勾注，凭证由一枚方印为信。
  *
- * 换气质只需要改本文件的变量，组件代码一行不动。
- * 亮色是同一套语义的浅色版本，不是简单反相。
+ * 两个维度正交：
+ *   data-style  档案谱系  ticket（当票·柜面）| indigo（蓝印底册·库房）
+ *   data-theme  明暗      system | light | dark
+ *
+ * 四个组合都有历史依据：
+ *   当票 · 正联    宣纸白底，松烟墨记账、朱砂印与勾注
+ *   当票 · 碑拓    墨底拓白 —— 暗色是拓片，不是"深色的纸"
+ *   蓝印 · 正联    白底靛蓝线，库房账册
+ *   蓝印 · 蓝靛    深靛蓝底白线，靛蓝印花布的负片
+ *
+ * 实现用两级间接：载体只定义 --c-* 原始色值，语义 token 的映射只写一遍。
+ * 自定义属性是惰性求值的，重定义 --c-bg 会让引用它的 --background 跟着变。
+ * 加第五种载体 ≈ 15 行。
  */
 
-/* 层级顺序：preflight(base) < 遗留样式 < 新组件(components/utilities)
- * 必须在 @import 之前声明。遗留 CSS 通过 legacy.css 以 layer(legacy) 导入。
- * 全部页面改造完成后，legacy 层连同三个 CSS 文件一起删除。 */
-@layer theme, base, legacy, components, utilities;
+/* 层级顺序：preflight(base) < 新组件(components) < 工具类(utilities)。
+ * components 层放材质规则，utilities 在它之后 —— 页面上一个 Tailwind 类
+ * 就能就地覆盖材质。必须在 @import 之前声明。 */
+@layer theme, base, components, utilities;
 
 @import 'tailwindcss';
-@import 'tw-animate-css';
 
 /* 主题写在 html[data-theme] 上，取值 system | light | dark。
- * 暗色是基线：无属性（React 挂载前）也走暗色，避免闪白。 */
+ * 暗色是基线：无属性（内联脚本执行前）也走暗色，避免闪白。 */
 @custom-variant light {
   &:where([data-theme='light'], [data-theme='light'] *) {
     @slot;
@@ -28,179 +38,313 @@
   }
 }
 
-/* ── 暗色（基线）───────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   载体 1 · 当票 —— 柜面凭证，与产品名同源
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 当票 · 碑拓（基线）────────────────────────────────────
+ * 暗色是拓片，不是"深色的纸"：墨底拓白。底色近中性微暖，
+ * 对图表配色几乎零污染 —— 这个产品满屏是图表。
+ * 票面比墨底亮一档（约 2% 明度）：暗色没有阴影可用，
+ * 卡片能不能从底上立起来全靠这一档。 */
+:root {
+  --c-bg: #141109;
+  --c-bg-soft: #1d1912;
+  --c-sheet: #2b271d;
+  --c-field: #1b1810;
+  --c-ledger: rgb(233 226 207 / 4.5%);
+
+  --c-ink: #e9e2cf;
+  --c-ink-strong: #f7f2e3;
+  --c-ink-dim: #9a8f7a;
+
+  --c-rule: #453f31;
+  --c-rule-soft: rgb(233 226 207 / 14%);
+  --c-rule-strong: #756c58;
+
+  /* 靛青墨 —— 账房记账用的蓝黑墨；朱砂只留给印与勾注 */
+  --c-accent: #6f93b4;
+  --c-accent-hover: #84a6c4;
+  --c-accent-on: #141109;
+  --c-link: #9cc2dc;
+
+  /* 朱砂提亮到拓片底上有余量：对 --c-sheet 4.99:1，
+   * 与票面同步提亮 —— 票面抬亮一档后朱砂也要跟上，否则勾注糊进纸里 */
+  --c-red: #dd7a63;
+  /* 苍绿 —— 增益不是弹窗绿，是矿物料：灰化偏苔，与朱砂/靛青同族 */
+  --c-green: #87a780;
+  --c-amber: #d8a64e;
+  --c-violet: #a893c9;
+
+  /* 图表色阶：暖墨单色相，明度单调。暗底上越大越亮。
+   * 色相拨到茶褐（约 33°）—— 40° 以上的中间档会读成苔绿，
+   * 库房货架要的是陈茶汤，不是苔藓。 */
+  --c-ramp-1: #463a2b;
+  --c-ramp-2: #5e4c38;
+  --c-ramp-3: #7c6448;
+  --c-ramp-4: #9e8060;
+  --c-ramp-5: #c0a081;
+}
+
+/* ── 当票 · 正联 ─────────────────────────────────────────────
+ * 宣纸白底、松烟墨、朱砂印。 */
+:root[data-theme='light'],
+:root[data-style='ticket'][data-theme='light'] {
+  --c-bg: #e9e2d1;
+  --c-bg-soft: #ded5bf;
+  --c-sheet: #f8f3e6;
+  --c-field: #f3ecd9;
+  --c-ledger: rgb(42 37 29 / 5%);
+
+  --c-ink: #2a251d;
+  --c-ink-strong: #171310;
+  --c-ink-dim: #6b604e;
+
+  --c-rule: #c8bba0;
+  --c-rule-soft: rgb(42 37 29 / 13%);
+  --c-rule-strong: #8f8371;
+
+  --c-accent: #3c5871;
+  --c-accent-hover: #2f4a62;
+  --c-accent-on: #f8f3e6;
+  --c-link: #2a5a8a;
+
+  --c-red: #a83226;
+  --c-green: #526b4a;
+  --c-amber: #8f5e10;
+  --c-violet: #5b4a86;
+
+  /* 亮底上方向反过来：量级越大越深（暖墨茶褐） */
+  --c-ramp-1: #b3a184;
+  --c-ramp-2: #a08f70;
+  --c-ramp-3: #7f6e52;
+  --c-ramp-4: #5f5140;
+  --c-ramp-5: #423628;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme='system'],
+  :root[data-style='ticket'][data-theme='system'] {
+    --c-bg: #e9e2d1;
+    --c-bg-soft: #ded5bf;
+    --c-sheet: #f8f3e6;
+    --c-field: #f3ecd9;
+    --c-ledger: rgb(42 37 29 / 5%);
+
+    --c-ink: #2a251d;
+    --c-ink-strong: #171310;
+    --c-ink-dim: #6b604e;
+
+    --c-rule: #c8bba0;
+    --c-rule-soft: rgb(42 37 29 / 13%);
+    --c-rule-strong: #8f8371;
+
+    --c-accent: #3c5871;
+    --c-accent-hover: #2f4a62;
+    --c-accent-on: #f8f3e6;
+    --c-link: #2a5a8a;
+
+    --c-red: #a83226;
+    --c-green: #526b4a;
+    --c-amber: #8f5e10;
+    --c-violet: #5b4a86;
+
+    --c-ramp-1: #b3a184;
+    --c-ramp-2: #a08f70;
+    --c-ramp-3: #7f6e52;
+    --c-ramp-4: #5f5140;
+    --c-ramp-5: #423628;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   载体 2 · 蓝印底册 —— 库房账册，靛蓝印花与蓝印纸本就一对
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 蓝印 · 蓝靛（dark）──────────────────────────────────────
+ * 深靛蓝底白线。主操作是一块纸白 —— 蓝靛上最有力的标记就是留白。 */
+:root[data-style='indigo'] {
+  --paper-texture: none;
+
+  --c-bg: #0d2136;
+  --c-bg-soft: #122b47;
+  --c-sheet: #173550;
+  --c-field: #102538;
+  --c-ledger: rgb(226 238 247 / 5%);
+
+  --c-ink: #e2eef7;
+  --c-ink-strong: #f4fafd;
+  --c-ink-dim: #8aa6bd;
+
+  --c-rule: #2f587c;
+  --c-rule-soft: rgb(226 238 247 / 16%);
+  --c-rule-strong: #4d7fab;
+
+  --c-accent: #cfe4f2;
+  --c-accent-hover: #e6f2fa;
+  --c-accent-on: #0d2136;
+  --c-link: #9cc4de;
+
+  /* 深蓝底吃对比度，朱砂要再亮一档：对 --c-sheet 4.8:1 */
+  --c-red: #ef7f63;
+  --c-green: #8fb5a3;
+  --c-amber: #e3b063;
+  --c-violet: #b3a4de;
+
+  --c-ramp-1: #27507a;
+  --c-ramp-2: #3b6a95;
+  --c-ramp-3: #5486ae;
+  --c-ramp-4: #75a4c7;
+  --c-ramp-5: #9cc4de;
+}
+
+/* ── 蓝印 · 正联 ─────────────────────────────────────────────
+ * 白底靛蓝线。蓝靛的正片。 */
+:root[data-style='indigo'][data-theme='light'] {
+  --c-bg: #e7edf2;
+  --c-bg-soft: #dbe4eb;
+  --c-sheet: #ffffff;
+  --c-field: #f5f8fa;
+  --c-ledger: rgb(29 58 88 / 5%);
+
+  --c-ink: #1d3a58;
+  --c-ink-strong: #0b2439;
+  --c-ink-dim: #4e6b84;
+
+  --c-rule: #b4c8d6;
+  --c-rule-soft: rgb(29 58 88 / 14%);
+  --c-rule-strong: #7d9cb4;
+
+  --c-accent: #1e5f8d;
+  --c-accent-hover: #174e74;
+  --c-accent-on: #ffffff;
+  --c-link: #2f5aa0;
+
+  --c-red: #b13a2c;
+  --c-green: #3f6b57;
+  --c-amber: #8a5510;
+  --c-violet: #52469a;
+
+  --c-ramp-1: #b6cbdd;
+  --c-ramp-2: #8fadc6;
+  --c-ramp-3: #6a8fae;
+  --c-ramp-4: #486f92;
+  --c-ramp-5: #2b5074;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-style='indigo'][data-theme='system'] {
+    --c-bg: #e7edf2;
+    --c-bg-soft: #dbe4eb;
+    --c-sheet: #ffffff;
+    --c-field: #f5f8fa;
+    --c-ledger: rgb(29 58 88 / 5%);
+
+    --c-ink: #1d3a58;
+    --c-ink-strong: #0b2439;
+    --c-ink-dim: #4e6b84;
+
+    --c-rule: #b4c8d6;
+    --c-rule-soft: rgb(29 58 88 / 14%);
+    --c-rule-strong: #7d9cb4;
+
+    --c-accent: #1e5f8d;
+    --c-accent-hover: #174e74;
+    --c-accent-on: #ffffff;
+    --c-link: #2f5aa0;
+
+    --c-red: #b13a2c;
+    --c-green: #3f6b57;
+    --c-amber: #8a5510;
+    --c-violet: #52469a;
+
+    --c-ramp-1: #b6cbdd;
+    --c-ramp-2: #8fadc6;
+    --c-ramp-3: #6a8fae;
+    --c-ramp-4: #486f92;
+    --c-ramp-5: #2b5074;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   语义映射 —— 只写一遍，四个载体共用
+   下游组件和 DashboardCharts 的 readChartPalette() 只认这一层的名字
+   ══════════════════════════════════════════════════════════════ */
 :root {
   color-scheme: dark;
 
-  --background: #0b0f14;
-  --background-soft: #0f1621;
-  --foreground: #e5e7eb;
-  --heading: #f8fafc;
+  /* 宣纸纹理：灰度噪点以 soft-light 叠在纸底上，明暗两个载体都成立。
+   * 强度收在 0.42 —— 纸感是摸出来的不是看出来的，再显眼就脏了。
+   * 蓝印载体覆写成 none：印花布上没有宣纸这回事。 */
+  --paper-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='260'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='260' height='260' filter='url(%23p)' opacity='0.42'/%3E%3C/svg%3E");
 
-  /* 卡片是半透明的，浮在背景渐变之上 */
-  --card: rgb(17 24 39 / 72%);
-  /* 需要不透明底的地方（图表 tooltip、树图缝隙）用这个 */
-  --card-solid: #111827;
-  --card-foreground: #e5e7eb;
-  --popover: #111827;
-  --popover-foreground: #e5e7eb;
+  --background: var(--c-bg);
+  --background-soft: var(--c-bg-soft);
+  --foreground: var(--c-ink);
+  --heading: var(--c-ink-strong);
 
-  /* 填充用 blue-600，白字对比 5.1:1；文字/链接用更亮的 blue-500 */
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --primary-foreground: #ffffff;
-  --link: #3b82f6;
+  /* 纸是实心的：存根不用毛玻璃，--card 与 --card-solid 同值。
+   * --card-solid 仍然保留，图表 tooltip 和树图缝隙依赖它。 */
+  --card: var(--c-sheet);
+  --card-solid: var(--c-sheet);
+  --card-foreground: var(--c-ink);
+  --popover: var(--c-sheet);
+  --popover-foreground: var(--c-ink);
 
-  --secondary: #0f172a;
-  --secondary-foreground: #e5e7eb;
-  --muted: #0f172a;
-  --muted-foreground: #9ca3af;
-  --accent: rgb(148 163 184 / 10%);
-  --accent-foreground: #f8fafc;
+  --primary: var(--c-accent);
+  --primary-hover: var(--c-accent-hover);
+  --primary-foreground: var(--c-accent-on);
+  /* 链接必须和主操作拉开：主操作是一块盖下去的墨，链接是墨色边上的
+   * 指示符。两个亮载体里链接取比靛青更亮更艳的一档蓝，不能与 accent 同值。 */
+  --link: var(--c-link);
 
-  --success: #22c55e;
-  --success-subtle: rgb(34 197 94 / 12%);
-  --warning: #f59e0b;
-  --warning-subtle: rgb(245 158 11 / 12%);
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --destructive-subtle: rgb(239 68 68 / 12%);
-  --purple: #c084fc;
+  --secondary: var(--c-bg-soft);
+  --secondary-foreground: var(--c-ink);
+  --muted: var(--c-bg-soft);
+  --muted-foreground: var(--c-ink-dim);
+  --accent: var(--c-rule-soft);
+  --accent-foreground: var(--c-ink-strong);
 
-  --border: #1f2937;
-  --border-soft: rgb(148 163 184 / 16%);
-  --input: #0b1220;
-  --ring: #3b82f6;
+  --success: var(--c-green);
+  --success-subtle: color-mix(in oklab, var(--c-green) 14%, transparent);
+  --warning: var(--c-amber);
+  --warning-subtle: color-mix(in oklab, var(--c-amber) 14%, transparent);
+  /* 朱红 —— 警示、未知、破坏性操作。四个载体同属红橙族，
+   * 只调对比度不动色相：同一语义换色相会让颜色不再表意。 */
+  --destructive: var(--c-red);
+  --destructive-foreground: var(--c-accent-on);
+  --destructive-subtle: color-mix(in oklab, var(--c-red) 14%, transparent);
 
-  --radius: 16px;
-  --radius-sm: 10px;
+  /* 印章 —— 印泥是压出来的，不是平的：
+   * 深部是印泥厚处，沿边吃色浅一档，读作纸面吃进了朱砂。 */
+  --seal-deep: color-mix(in oklab, var(--c-red) 72%, black);
+  --seal-rim: color-mix(in oklab, var(--c-red) 58%, var(--card));
+  --purple: var(--c-violet);
 
-  --shadow-paper: 0 8px 24px rgb(0 0 0 / 22%);
-  --shadow-raised: 0 24px 60px rgb(0 0 0 / 32%);
+  --border: var(--c-rule);
+  --border-soft: var(--c-rule-soft);
+  --border-strong: var(--c-rule-strong);
+  --input: var(--c-field);
+  --ring: var(--c-link);
 
-  /* 背景晕染：左上偏蓝、右上偏绿，很淡 */
-  --wash-1: rgb(59 130 246 / 12%);
-  --wash-2: rgb(34 197 94 / 6%);
+  /* 直角。存根和图纸都是直边纸张，没有圆角这回事。 */
+  --radius: 0px;
+  --radius-sm: 0px;
 
-  /* 图表色阶：蓝色单色相，index 0 = 量级最小（暗底上越大越亮）。
-   * 经 dataviz validator 校验：单色相、明度单调、相邻 ΔL ≥ 0.06、
-   * 端点对 #111827 达 2.07:1。 */
-  --chart-1: #184998;
-  --chart-2: #2f60b2;
-  --chart-3: #4678cc;
-  --chart-4: #5d91e7;
-  --chart-5: #7aabfb;
+  --chart-1: var(--c-ramp-1);
+  --chart-2: var(--c-ramp-2);
+  --chart-3: var(--c-ramp-3);
+  --chart-4: var(--c-ramp-4);
+  --chart-5: var(--c-ramp-5);
 }
 
-/* ── 亮色 ─────────────────────────────────────────────────── */
-[data-theme='light'] {
+/* color-scheme 跟着明暗走，让原生控件（滚动条、日期选择器）配色正确 */
+:root[data-theme='light'] {
   color-scheme: light;
-
-  --background: #f7f9fc;
-  --background-soft: #eef2f7;
-  --foreground: #0f172a;
-  --heading: #0b1220;
-
-  --card: rgb(255 255 255 / 78%);
-  --card-solid: #ffffff;
-  --card-foreground: #0f172a;
-  --popover: #ffffff;
-  --popover-foreground: #0f172a;
-
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --primary-foreground: #ffffff;
-  --link: #1d4ed8;
-
-  --secondary: #eef2f7;
-  --secondary-foreground: #0f172a;
-  --muted: #eef2f7;
-  --muted-foreground: #5b6675;
-  --accent: rgb(15 23 42 / 5%);
-  --accent-foreground: #0f172a;
-
-  /* 亮底上语义色要压暗才够 4.5:1 */
-  --success: #15803d;
-  --success-subtle: rgb(21 128 61 / 10%);
-  --warning: #b45309;
-  --warning-subtle: rgb(180 83 9 / 10%);
-  --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
-  --destructive-subtle: rgb(220 38 38 / 10%);
-  --purple: #7c3aed;
-
-  --border: #e2e8f0;
-  --border-soft: rgb(15 23 42 / 10%);
-  --input: #ffffff;
-  --ring: #2563eb;
-
-  --shadow-paper: 0 2px 8px rgb(15 23 42 / 6%);
-  --shadow-raised: 0 16px 40px rgb(15 23 42 / 10%);
-
-  --wash-1: rgb(59 130 246 / 8%);
-  --wash-2: rgb(34 197 94 / 5%);
-
-  /* 亮底上方向反过来：量级越大越深。端点对 #ffffff 达 2.32:1。 */
-  --chart-1: #7aabfb;
-  --chart-2: #6292e1;
-  --chart-3: #4a79c6;
-  --chart-4: #3461ac;
-  --chart-5: #1d4a93;
 }
-
-/* 跟随系统且系统为亮色时，套用同一组亮色值 */
 @media (prefers-color-scheme: light) {
-  [data-theme='system'] {
+  :root[data-theme='system'] {
     color-scheme: light;
-
-    --background: #f7f9fc;
-    --background-soft: #eef2f7;
-    --foreground: #0f172a;
-    --heading: #0b1220;
-
-    --card: rgb(255 255 255 / 78%);
-    --card-solid: #ffffff;
-    --card-foreground: #0f172a;
-    --popover: #ffffff;
-    --popover-foreground: #0f172a;
-
-    --primary: #2563eb;
-    --primary-hover: #1d4ed8;
-    --primary-foreground: #ffffff;
-    --link: #1d4ed8;
-
-    --secondary: #eef2f7;
-    --secondary-foreground: #0f172a;
-    --muted: #eef2f7;
-    --muted-foreground: #5b6675;
-    --accent: rgb(15 23 42 / 5%);
-    --accent-foreground: #0f172a;
-
-    --success: #15803d;
-    --success-subtle: rgb(21 128 61 / 10%);
-    --warning: #b45309;
-    --warning-subtle: rgb(180 83 9 / 10%);
-    --destructive: #dc2626;
-    --destructive-foreground: #ffffff;
-    --destructive-subtle: rgb(220 38 38 / 10%);
-    --purple: #7c3aed;
-
-    --border: #e2e8f0;
-    --border-soft: rgb(15 23 42 / 10%);
-    --input: #ffffff;
-    --ring: #2563eb;
-
-    --shadow-paper: 0 2px 8px rgb(15 23 42 / 6%);
-    --shadow-raised: 0 16px 40px rgb(15 23 42 / 10%);
-
-    --wash-1: rgb(59 130 246 / 8%);
-    --wash-2: rgb(34 197 94 / 5%);
-
-    --chart-1: #7aabfb;
-    --chart-2: #6292e1;
-    --chart-3: #4a79c6;
-    --chart-4: #3461ac;
-    --chart-5: #1d4a93;
   }
 }
 
@@ -235,37 +379,44 @@
   --color-purple: var(--purple);
   --color-border: var(--border);
   --color-border-soft: var(--border-soft);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
 
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) + 4px);
-
-  --shadow-paper: var(--shadow-paper);
-  --shadow-raised: var(--shadow-raised);
+  --radius-lg: var(--radius);
 
   /* 不引入外部 web font：产品要求核心功能本地可用，
    * 挂 CDN 字体会让离线环境下排版塌掉。系统栈里中文优先。 */
   --font-sans:
     ui-sans-serif, system-ui, -apple-system, 'PingFang SC', 'Hiragino Sans GB',
     'Noto Sans SC', 'Microsoft YaHei', sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', 'SFMono-Regular', Menlo, monospace;
+  /* 标题与眉批用宋体系 —— 刻本账册的气质在衬线里；
+   * 正文与金额不跟，无衬线的可读性和等宽的成列感不动。 */
+  --font-serif:
+    'Songti SC', 'STSong', 'Noto Serif CJK SC', 'Noto Serif SC', 'Source Han Serif SC',
+    'SimSun', serif;
+  /* 等宽承担全部金额、日期和计数 —— 账本的数字天然成列 */
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-/* ── 基础层 ───────────────────────────────────────────────── */
+/* ══════════════════════════════════════════════════════════════
+   基础层
+   ══════════════════════════════════════════════════════════════ */
 @layer base {
   * {
     border-color: var(--border);
   }
 
   body {
-    /* 两层很淡的径向渐变压在底色上，卡片半透明才有东西可透 */
+    /* 账页横线。不用 background-attachment: fixed —— 纸要跟着内容滚，
+     * 钉死会露馅成"玻璃后面的背景板"。横线在最上层，
+     * 下面依次是宣纸纹理（soft-light 吃进底色）与纸底本身。 */
     background:
-      radial-gradient(circle at top left, var(--wash-1), transparent 34%),
-      radial-gradient(circle at top right, var(--wash-2), transparent 28%),
-      var(--background);
-    background-attachment: fixed;
+      repeating-linear-gradient(0deg, transparent 0 27px, var(--c-ledger) 27px 28px),
+      var(--paper-texture), var(--background);
+    background-blend-mode: normal, soft-light, normal;
     color: var(--foreground);
     font-family: var(--font-sans);
     /* 中文行高给足；字距永远不用负值，中文负字距会糊成一团 */
@@ -280,23 +431,322 @@
   h3,
   h4 {
     color: var(--heading);
+    font-family: var(--font-serif);
+    font-weight: 700;
     line-height: 1.35;
     letter-spacing: 0;
   }
 
   /* 金额、日期、计数一律等宽数字对齐 —— 这个产品全是数字列 */
-  .tnum,
-  [data-slot='amount'] {
+  .tnum {
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum' 1;
   }
 
+  /* 票面金额：等宽字族 + 紧字距，账本的数字长这样 */
+  [data-slot='amount'] {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  /* 勾选是账房笔下的记号，不是系统的圆角蓝勾：直角小方盒，
+   * 落墨时主墨填底、纸色出勾。radio 保留圆点 —— 圆圈是它的功能隐喻，
+   * 不是圆角装饰。 */
+  input[type='checkbox'],
+  input[type='radio'] {
+    appearance: none;
+    display: inline-grid;
+    place-content: center;
+    width: 1rem;
+    height: 1rem;
+    margin: 0;
+    flex-shrink: 0;
+    border: 1px solid var(--border-strong);
+    background: var(--input);
+    border-radius: 0;
+    cursor: pointer;
+  }
+  input[type='checkbox']::before,
+  input[type='radio']::before {
+    content: '';
+    display: block;
+    transform: scale(0);
+    transition: transform 0.12s ease-out;
+  }
+  input[type='checkbox']::before {
+    width: 0.62rem;
+    height: 0.62rem;
+    background: var(--primary-foreground);
+    /* 一撇一捺成勾 */
+    clip-path: polygon(12% 46%, 0 66%, 42% 100%, 100% 20%, 86% 6%, 40% 66%);
+  }
+  input[type='radio']::before {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: var(--primary);
+  }
+  /* 勾选：落墨时主墨填底、纸色出勾 */
+  input[type='checkbox']:checked {
+    background: var(--primary);
+    border-color: var(--primary);
+  }
+  /* 单选不填底：纸面上落一点实墨，边框跟主墨走 ——
+   * 墨底包纸芯会被读成一个甜甜圈 */
+  input[type='radio']:checked {
+    border-color: var(--primary);
+  }
+  input[type='checkbox']:checked::before,
+  input[type='radio']:checked::before {
+    transform: scale(1);
+  }
+  input[type='checkbox']:disabled,
+  input[type='radio']:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  input[type='radio'] {
+    border-radius: 50%;
+  }
+
+  /* 系统日历小图标是外来物：压暗到墨色层级，不抢眼 */
+  input[type='date']::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.5;
+  }
+
   ::selection {
-    background-color: color-mix(in oklab, var(--link) 28%, transparent);
+    background-color: color-mix(in oklab, var(--link) 30%, transparent);
   }
 
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   材质层
+   Tailwind 只管布局/间距/字号，材质全在这里按 data-style 提供。
+   组件已经在输出 data-slot，选择器钩子是现成的。
+   放在 components 层：压得过 legacy，又输给 utilities ——
+   页面上一个 Tailwind 类就能就地覆盖。
+   ══════════════════════════════════════════════════════════════ */
+@layer components {
+  /* 纸面。顶边一条粗规则线是存根的识别特征：撕下来的那一条。 */
+  [data-slot='card'] {
+    border: 1px solid var(--border);
+    border-top: 4px solid var(--border-strong);
+    background: var(--card);
+  }
+
+  /* 可点击的整块卡片：hover 压一道内描边，不上浮。
+   * 纸不会飘起来，它只是被按住了。 */
+  [data-slot='card'][data-interactive='true'] {
+    transition:
+      box-shadow 0.15s,
+      border-color 0.15s;
+  }
+  [data-slot='card'][data-interactive='true']:hover,
+  [data-slot='card'][data-interactive='true']:focus-visible {
+    box-shadow: inset 0 0 0 1px var(--foreground);
+    border-top-color: var(--foreground);
+  }
+
+  /* 陈纸：当票随年头向茶色渐变，--vintage-mix 来自 lib/vintage.ts
+   * 的量化分档（一年半起染、八年封顶 12%）。
+   * 从 --card 出发混，四个载体各自成立。深浅是氛围不是读数。 */
+  [data-slot='card'][data-vintage='true'] {
+    background: color-mix(
+      in oklab,
+      var(--card) calc(100% - var(--vintage-mix, 0%)),
+      #8f7a4d
+    );
+  }
+
+  /* 相角贴票：照片的左上和右下各压一枚纸质三角相角 ——
+   * 老相簿贴照片的方式。纸色三角 + 一道对角细规，
+   * 不投影不加胶：纸面的事就用纸的语言。 */
+  [data-slot='photo-mount'] {
+    position: relative;
+    display: block;
+  }
+  [data-slot='photo-mount']::before,
+  [data-slot='photo-mount']::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    z-index: 1;
+    width: 26px;
+    height: 26px;
+  }
+  [data-slot='photo-mount']::before {
+    top: 0;
+    left: 0;
+    background: linear-gradient(
+      to bottom right,
+      var(--card) 0 47%,
+      var(--border-strong) 47% 53%,
+      transparent 53% 100%
+    );
+  }
+  [data-slot='photo-mount']::after {
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+      to top left,
+      var(--card) 0 47%,
+      var(--border-strong) 47% 53%,
+      transparent 53% 100%
+    );
+  }
+
+  /* 骑缝线：存根与票根之间那道撕口。
+   * 两端的半圆咬进页面底色，所以填充必须是 --background 而不是 --card。 */
+  [data-slot='perforation'] {
+    position: relative;
+    border-top: 1px dashed var(--border);
+  }
+  [data-slot='perforation']::before,
+  [data-slot='perforation']::after {
+    content: '';
+    position: absolute;
+    top: -6px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--background);
+    border: 1px solid var(--border);
+  }
+  [data-slot='perforation']::before {
+    left: -7px;
+  }
+  [data-slot='perforation']::after {
+    right: -7px;
+  }
+
+  /* 按钮是盖在纸上的一块墨，不浮起 */
+  [data-slot='button'] {
+    border-radius: 0;
+  }
+
+  /* 输入框是纸上划出来的填写栏 */
+  [data-slot='field'] {
+    background: var(--input);
+    border: 1px solid var(--border);
+    border-radius: 0;
+  }
+
+  /* 嵌套的原生控件（带前置图标的搜索框、带币种前缀的金额框）：
+   * 边框和底色由外层 field 承担，里面这个必须完全透明。 */
+  [data-slot='field'] input,
+  [data-slot='field'] select,
+  [data-slot='field'] textarea {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font-family: inherit;
+  }
+
+  /* 用 focus-within 而不是 focus-visible：这个 slot 有时是 input 本身，
+   * 有时是包着 input 的 label（带前置图标的搜索框）。后者聚焦的是里面的
+   * input，只写 focus-visible 会让整个框没有任何焦点提示。 */
+  [data-slot='field']:focus-within {
+    outline: 2px solid var(--ring);
+    outline-offset: -1px;
+  }
+
+  /* 表头/眉批：小号宋体 + 字距，刻本账册页眉的写法。
+   * 12px 是中文可读的下限，不能照搬拉丁标签常用的 10px。
+   * uppercase 对中文是空操作，只影响英文界面。 */
+  [data-slot='ledger-label'] {
+    font-family: var(--font-serif);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  /* 朱红判批：账本里用红笔在左侧划一道，表示这笔判了。
+   * 朱砂只留给印信与判词 —— 判批、报错、破坏性操作。 */
+  [data-slot='annotation'] {
+    border-left: 3px solid var(--destructive);
+    padding-left: 8px;
+    color: var(--destructive);
+  }
+
+  /* 藤黄待办：警醒但不需处理 —— 成本未记录、待补录、尚未服役。
+   * 待办也不要用朱砂，印信的分量是靠不去用它撑起来的。 */
+  [data-slot='pending'] {
+    border-left: 3px solid var(--warning);
+    padding-left: 8px;
+    color: var(--warning);
+  }
+
+  /* 新记录的墨：刚写下的那一行短暂显眼，然后墨被纸吃进去。
+   * 一次性单次播放，不循环 —— 账本只记录事实，不表演情绪。 */
+  @keyframes ledger-fresh-ink {
+    0% {
+      background-color: color-mix(in oklab, var(--primary) 16%, transparent);
+      box-shadow: inset 0 0 0 1px var(--primary);
+    }
+    100% {
+      background-color: transparent;
+      box-shadow: none;
+    }
+  }
+  .fresh-ink {
+    animation: ledger-fresh-ink 900ms ease-out both;
+  }
+
+  /* 数字落印：数据更新后大数字重新盖一次 —— 像重新落笔，不是滚动行情。 */
+  @keyframes ledger-print {
+    0% {
+      opacity: 0.3;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  .ledger-print {
+    animation: ledger-print 420ms ease-out both;
+  }
+
+  /* 盖印：朱砂方印从 1.7 倍缩落定 —— 凭印为信，一次盖下不反复。
+   * 终态角度与 SealMark 的静态 rotate(-3deg) 对齐，避免落定时跳一下。 */
+  @keyframes ledger-stamp {
+    0% {
+      transform: rotate(-3deg) scale(1.7);
+      opacity: 0;
+    }
+    55% {
+      opacity: 1;
+    }
+    72% {
+      transform: rotate(-3deg) scale(0.94);
+    }
+    100% {
+      transform: rotate(-3deg) scale(1);
+      opacity: 1;
+    }
+  }
+  .ledger-stamp {
+    animation: ledger-stamp 420ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fresh-ink,
+    .ledger-print,
+    .ledger-stamp {
+      animation: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-slot='card'][data-interactive='true'] {
+      transition: none;
+    }
   }
 }

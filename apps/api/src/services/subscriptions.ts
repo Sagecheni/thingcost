@@ -302,7 +302,7 @@ export async function createSubscription(
       amountMinor: BigInt(input.amountMinor),
       discountMinor: BigInt(input.discountMinor ?? '0'),
       discountEndsOn: input.discountEndsOn ?? null,
-      autoRenew: input.autoRenew,
+      autoRenew: input.kind === 'digital_license' ? false : input.autoRenew,
       seats: input.seats ?? null,
       startedOn: input.startedOn ?? null,
       trialEndsOn: input.trialEndsOn ?? null,

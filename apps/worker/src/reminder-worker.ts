@@ -476,6 +476,46 @@ async function sendPushplus(
   return { status: response.status, excerpt: responseBody.slice(0, 500) };
 }
 
+async function sendBark(
+  configuration: ProviderChannelConfig,
+  title: string,
+  description: string,
+): Promise<{ status: number; excerpt: string }> {
+  const bark = configuration as {
+    serverUrl: string;
+    deviceKey: string;
+    group?: string;
+    sound?: string;
+  };
+  const response = await fetch(bark.serverUrl.replace(/\/+$/u, '') + '/push', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json; charset=utf-8' },
+    body: JSON.stringify({
+      device_key: bark.deviceKey,
+      title: title.slice(0, 200),
+      body: description.slice(0, 10_000),
+      ...(bark.group ? { group: bark.group } : {}),
+      ...(bark.sound ? { sound: bark.sound } : {}),
+    }),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const responseBody = await response.text();
+  if (!response.ok) throw new Error('Bark HTTP ' + String(response.status));
+  let parsed: { code?: number | string } = {};
+  try {
+    parsed = JSON.parse(responseBody) as { code?: number | string };
+  } catch {
+    // HTTP success is still accepted when a compatible self-hosted server returns no JSON.
+  }
+  if (
+    (typeof parsed.code === 'number' && parsed.code !== 200) ||
+    (typeof parsed.code === 'string' && parsed.code !== '200')
+  ) {
+    throw new Error('Bark code ' + String(parsed.code));
+  }
+  return { status: response.status, excerpt: responseBody.slice(0, 500) };
+}
+
 async function completeOrdinaryOccurrence(db: Database, occurrenceId: string, now: Date) {
   const [row] = await db
     .select({ occurrence: reminderOccurrences, reminder: reminders })
@@ -631,18 +671,20 @@ async function processDeliveries(
               ? await sendServerchan(channel.configuration, row.reminder.title, text)
               : channel.provider === 'pushplus'
                 ? await sendPushplus(channel.configuration, row.reminder.title, text)
-                : await sendWebhook(channel.configuration, {
-                    event: 'chronicle.reminder',
-                    deliveryId: row.delivery.id,
-                    reminderId: row.reminder.id,
-                    occurrenceId: row.occurrence.id,
-                    title: row.reminder.title,
-                    description: row.reminder.description,
-                    assetName: row.assetName,
-                    dueAt: row.occurrence.dueAt.toISOString(),
-                    taskMode: row.reminder.taskMode,
-                    kind: row.delivery.kind,
-                  });
+                : channel.provider === 'bark'
+                  ? await sendBark(channel.configuration, row.reminder.title, text)
+                  : await sendWebhook(channel.configuration, {
+                      event: 'chronicle.reminder',
+                      deliveryId: row.delivery.id,
+                      reminderId: row.reminder.id,
+                      occurrenceId: row.occurrence.id,
+                      title: row.reminder.title,
+                      description: row.reminder.description,
+                      assetName: row.assetName,
+                      dueAt: row.occurrence.dueAt.toISOString(),
+                      taskMode: row.reminder.taskMode,
+                      kind: row.delivery.kind,
+                    });
       const attemptCount = row.delivery.attemptCount + 1;
       await db.transaction(async (transaction) => {
         await transaction

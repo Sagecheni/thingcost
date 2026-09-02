@@ -21,6 +21,7 @@ import {
   reminderDetailSchema,
   reminderListSchema,
   reminderOccurrenceSchema,
+  notificationChannelSchema,
   tagSchema,
   wishlistConversionResultSchema,
   wishlistImageSchema,
@@ -1540,6 +1541,31 @@ describe.skipIf(!database)('milestone-one API', () => {
     });
     expect(secretWithoutMasterKey.statusCode).toBe(422);
 
+    const configuredApp = await buildApp(
+      { ...testConfig, APP_MASTER_KEY: 'api-bark-test-master-key-with-32-characters' },
+      { db: database.db },
+    );
+    const barkResponse = await configuredApp.inject({
+      method: 'POST',
+      url: '/api/v1/notification-channels',
+      headers: { cookie },
+      payload: {
+        provider: 'bark',
+        name: '个人 iPhone',
+        serverUrl: 'https://api.day.app/',
+        deviceKey: 'private-device-key',
+        group: '物纪',
+        sound: 'minuet',
+        isDefault: true,
+      },
+    });
+    expect(barkResponse.statusCode).toBe(201);
+    const bark = notificationChannelSchema.parse(barkResponse.json());
+    expect(bark).toMatchObject({ provider: 'bark', source: 'database', isDefault: true });
+    expect(bark.configurationSummary).toContain('api.day.app');
+    expect(bark.configurationSummary).not.toContain('private-device-key');
+    await configuredApp.close();
+
     await app.close();
   });
 
@@ -2340,6 +2366,29 @@ describe.skipIf(!database)('milestone-one API', () => {
     expect(subscription.passwordManagerUrl).toBeNull();
     expect(subscription.tags).toHaveLength(1);
     expect(subscription.tags[0]?.id).toBe(subscriptionTag.id);
+
+    const updatedResponse = await app.inject({
+      method: 'PATCH',
+      url: `/api/v1/subscriptions/${subscription.id}`,
+      headers: { cookie },
+      payload: {
+        name: 'iCloud+ 200GB',
+        vendor: null,
+        nextBillingOn: null,
+        accountHint: null,
+        notes: '家庭共享',
+        tagIds: [],
+      },
+    });
+    expect(updatedResponse.statusCode).toBe(200);
+    expect(subscriptionDetailSchema.parse(updatedResponse.json())).toMatchObject({
+      name: 'iCloud+ 200GB',
+      vendor: null,
+      nextBillingOn: null,
+      accountHint: null,
+      notes: '家庭共享',
+      tags: [],
+    });
 
     const subscriptionReminder = await app.inject({
       method: 'POST',

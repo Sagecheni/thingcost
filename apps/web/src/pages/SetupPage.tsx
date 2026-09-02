@@ -1,9 +1,25 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { BookOpenText, LockKeyhole, Server } from 'lucide-react';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, type ReactNode, useState } from 'react';
 
+import { brand } from '@thingcost/domain';
+
+import { BrandMark } from '../components/BrandMark.js';
+import { SealMark } from '../components/SealMark.js';
 import { api } from '../lib/api.js';
+import { currencyLabel, supportedCurrencies } from '../lib/application-settings.js';
 import { queryKeys } from '../lib/query-keys.js';
+import { Button } from '../components/ui/button.js';
+import { FormError, FormField, SelectInput, TextInput } from '../components/ui/form.js';
+
+function Principle({ icon, children }: { icon: ReactNode; children: ReactNode }) {
+  return (
+    <li className="flex items-center gap-2 text-sm text-muted-foreground">
+      <span className="shrink-0 text-foreground">{icon}</span>
+      {children}
+    </li>
+  );
+}
 
 export function SetupPage() {
   const queryClient = useQueryClient();
@@ -13,6 +29,7 @@ export function SetupPage() {
   const [timeZone, setTimeZone] = useState(
     Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai',
   );
+  const [baseCurrency, setBaseCurrency] = useState('CNY');
   const [localError, setLocalError] = useState<string | null>(null);
 
   const initialize = useMutation({
@@ -45,41 +62,50 @@ export function SetupPage() {
       username,
       password,
       timeZone,
-      baseCurrency: 'CNY',
+      baseCurrency,
     });
   };
 
   return (
-    <main className="auth-layout">
-      <section className="auth-story">
-        <div className="brand-mark brand-mark-large" aria-hidden="true">
-          物
-        </div>
-        <p className="eyebrow">物纪 · Chronicle</p>
-        <h1>建立你的个人器物档案。</h1>
-        <p>购入、使用、闲置、维修与告别——从今天起，每件拥有都有一条可以解释的时间线。</p>
-        <div className="auth-principles">
-          <span>
-            <Server size={17} /> 数据留在自己的服务器
-          </span>
-          <span>
-            <LockKeyhole size={17} /> 单管理员登录保护
-          </span>
-          <span>
-            <BookOpenText size={17} /> 关键成本和状态可追溯
-          </span>
-        </div>
+    <main className="mx-auto grid min-h-screen max-w-4xl items-center gap-8 px-5 py-12 lg:grid-cols-2">
+      <section className="space-y-3">
+        <BrandMark className="size-11" />
+        <p data-slot="ledger-label">
+          {brand.chineseName} · {brand.englishName}
+        </p>
+        <h1 className="text-2xl font-semibold text-heading">建立你的个人器物档案。</h1>
+        <p className="text-sm text-muted-foreground">
+          购入、使用、闲置、维修与告别——从今天起，每件拥有都有一条可以解释的时间线。
+        </p>
+        <ul className="flex flex-col gap-2 pt-2">
+          <Principle icon={<Server aria-hidden="true" className="size-[17px]" />}>
+            数据留在自己的服务器
+          </Principle>
+          <Principle icon={<LockKeyhole aria-hidden="true" className="size-[17px]" />}>
+            单管理员登录保护
+          </Principle>
+          <Principle icon={<BookOpenText aria-hidden="true" className="size-[17px]" />}>
+            关键成本和状态可追溯
+          </Principle>
+        </ul>
       </section>
 
-      <section className="auth-panel">
-        <p className="eyebrow">首次初始化</p>
-        <h2>创建管理员</h2>
-        <p className="muted-copy">完成后，初始化入口将永久关闭。</p>
+      <section data-slot="card" className="flex flex-col gap-4 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-0.5">
+            <p data-slot="ledger-label">首次初始化</p>
+            <h2 className="text-base font-semibold text-heading">创建管理员</h2>
+            <p className="text-sm text-muted-foreground">
+              完成后，初始化入口将永久关闭。
+            </p>
+          </div>
+          {/* 开户立凭：第一张当票从这里盖出去 */}
+          <SealMark className="mt-0.5" />
+        </div>
 
-        <form className="form-stack" onSubmit={submit}>
-          <label>
-            管理员名称
-            <input
+        <form className="flex flex-col gap-3" onSubmit={submit}>
+          <FormField label="管理员名称">
+            <TextInput
               autoComplete="username"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
@@ -87,10 +113,9 @@ export function SetupPage() {
               maxLength={64}
               required
             />
-          </label>
-          <label>
-            管理员密码
-            <input
+          </FormField>
+          <FormField label="管理员密码" hint="至少 12 个字符；物纪不提供邮件找回。">
+            <TextInput
               autoComplete="new-password"
               type="password"
               value={password}
@@ -98,11 +123,9 @@ export function SetupPage() {
               minLength={12}
               required
             />
-            <small>至少 12 个字符；物纪不提供邮件找回。</small>
-          </label>
-          <label>
-            再次输入密码
-            <input
+          </FormField>
+          <FormField label="再次输入密码">
+            <TextInput
               autoComplete="new-password"
               type="password"
               value={confirmation}
@@ -110,28 +133,36 @@ export function SetupPage() {
               minLength={12}
               required
             />
-          </label>
-          <label>
-            应用时区
-            <input
+          </FormField>
+          <FormField label="应用时区">
+            <TextInput
               value={timeZone}
               onChange={(event) => setTimeZone(event.target.value)}
               required
             />
-          </label>
-
-          {(localError || initialize.error) && (
-            <p className="form-error" role="alert">
-              {localError ?? initialize.error?.message}
-            </p>
-          )}
-
-          <button
-            className="primary-action primary-action-wide"
-            disabled={initialize.isPending}
+          </FormField>
+          <FormField
+            label="基础币种"
+            hint="首笔财务记录产生后将锁定，所有成本会折算到该币种。"
           >
+            <SelectInput
+              value={baseCurrency}
+              onChange={(event) => setBaseCurrency(event.target.value)}
+              required
+            >
+              {supportedCurrencies.map((currency) => (
+                <option key={currency} value={currency}>
+                  {currencyLabel(currency)}
+                </option>
+              ))}
+            </SelectInput>
+          </FormField>
+
+          <FormError>{localError ?? initialize.error?.message}</FormError>
+
+          <Button className="w-full" disabled={initialize.isPending}>
             {initialize.isPending ? '正在建立物纪…' : '完成初始化'}
-          </button>
+          </Button>
         </form>
       </section>
     </main>

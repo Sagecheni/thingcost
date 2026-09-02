@@ -2,50 +2,58 @@
 
 > 记录每一件拥有的时间与价值。
 
-物纪是一个面向个人、自托管的物品生命周期与成本管理服务。项目正在按可运行的垂直里程碑开发。
+物纪是一个**自托管的个人物品生命周期与成本账本**：每件耐用品从取得、使用、借出、维修到告别，都有可追溯的时间线和可解释的日均成本。单管理员、数据全在你自己的服务器上，核心功能不依赖任何外部服务。
 
-## 当前状态
+视觉上是它的另一面旗：整个前端按**当票/账房**的世界观手工设计——每件物品是一张当票，日均成本是票面金额，未知成本绝不渲染成零。
 
-Milestone 2 已形成可日常使用的资产成本洞察版本；Milestone 3 的附件、购买订单和提醒通知切片也已可用：
+<!-- 截图：建议放总览仪表盘、资产详情页（当票）、暗色载体 2–3 张 -->
 
-- 首次初始化、单管理员会话与 CLI 密码重置
-- 物品创建、编辑、标签、筛选、排序和回收站删除
-- 状态、资金、成色、缺陷、借出归还与维修时间线
-- 持有/服役天数、生命周期净成本和净日均成本
-- 当前组合日均成本、净投入、期间支出、完整度与状态洞察
-- ECharts 成本趋势、分类构成和最近活动
-- 响应式卡片/表格视图，以及浅色、深色、跟随系统主题
-- 私有照片与 PDF 凭证、自动缩略图、封面、相册排序和相机上传
-- 附件随机化存储、登录鉴权读取、类型嗅探、大小限制及持久卷
-- 多商品订单、共享优惠与费用精确分摊、订单直接生成物品及取得资金事件
-- 配件与主机一律作为独立物品记录；若只需把费用记在主机上，可继续使用 `accessory` / `upgrade` 资金事件
-- 一次性与周期提醒、多提前量、待确认任务、稍后提醒和暂停规则
-- PostgreSQL Worker 任务、Telegram/Webhook 渠道、发送日志、失败重试和幂等保护
-- 提醒中心、物品快捷提醒、Dashboard 到期提醒和响应式移动端表单
-- PostgreSQL 迁移、集成测试和 Docker Compose 部署
-- 种草清单：封面图片、多个平台链接、目标价、预算、优先级和计划日期
-- 手工价格快照与价格曲线，以及转为正式物品时保留完整价格历史；不提供购物平台自动追价
-- 多币种物品、资金事件、订单与种草转入；原币和锁定基础币金额同时留存
-- Frankfurter v2 历史参考汇率、最近前一有效日回退，以及可覆盖的实际结算汇率
-- Chronicle Export v1 可移植 ZIP：完整 JSON、核心 CSV、原始附件与 SHA-256 校验清单
-- 完整导入：格式校验、冲突预览与 replace 覆盖恢复（保留当前管理员）
-- 个人访问令牌：默认关闭、创建时只显示一次，并按物品、种草、提醒与附件等 Scope 做最小权限隔离
-- OpenAPI 文档：`/api/docs`（UI）与 `/api/v1/openapi.json`（机器可读契约）
-- 订阅与数字许可：独立于实物资产的周期订阅/买断许可、计划与实际扣款、预计月/年支出
-- 通知渠道：Telegram、通用 Webhook、企业微信群机器人、Server酱、PushPlus；支持管理员测试发送
-- 订阅与数字许可：试用转正式、优惠与涨价历史、失败扣款、取消/暂停/恢复/续费、标签、私有资料附件和关联提醒
-- 回收站：列表、恢复、强确认永久删除与 Worker 到期清理
-- 国际化基础设施：简体中文默认，支持 English 切换并持久化语言偏好
-- Portable Export/Import 同步覆盖订阅价格历史、扣款、标签、附件和关联提醒；旧版本归档中的估值记录仅作兼容保留
+## 能做什么
 
-完整范围与约束：
+**资产账本**
 
-- [产品规格](docs/product-spec.md)
-- [技术架构](docs/architecture.md)
-- [交付路线](docs/roadmap.md)
-- [Docker 部署](docs/deployment.md)
+- 物品生命周期全记录：取得、状态流转、资金事件、成色缺陷、借出归还、维修
+- 持有/服役天数、生命周期净成本、净日均成本，全部口径透明可解释
+- 未知成本就是未知——用琥珀色"待办勾注"标记，绝不按零计入任何合计
+- 覆盖回收站（30 天后悔期）、照片与 PDF 私有附件、分类与标签、筛选排序
 
-## Docker 快速启动
+**订阅与提醒**
+
+- 订阅与数字许可账本：试用/买断、计划与实际扣款、预计月/年支出、涨价历史
+- 一次性与周期提醒、提前量、稍后/暂停，Telegram、Webhook、企业微信、Server酱、PushPlus、Bark 等通知渠道
+- 愿望清单（种草）：目标价、手工价格快照与曲线，转正时保留完整价格历史
+
+**数据主权**
+
+- Chronicle Export/Import：完整 JSON + CSV + 原始附件的可移植归档，冲突预览与恢复
+- 多币种：原币与锁定基础币同时留存，历史参考汇率可覆盖为实际结算汇率
+- 个人访问令牌（默认关闭、最小权限 Scope）、OpenAPI 契约（`/api/docs`）
+
+## 设计语言：当票与朱砂印
+
+物纪的界面不是对一个设计系统的套用，而是一个完整手工世界观的实现：
+
+- **每件物品一张当票**——头联（分类与票号）、票面（日均成本大数字）、骑缝（撕口与半印）、存根脚
+- **朱砂方印**——白文篆意"物纪"，登录、保存、更正、收笔处的凭信；更正/作废盖长条骑缝戳
+- **库房货架**——分类版图按《千字文》"天地玄黄宇宙洪荒"编号归架，一格一类
+- **铅字块**——分类首字入描边小方块，活字式扫读锚点
+- **陈纸**——在册越久，票面向茶色渐变（JND 量化五档）；新墨迹未干，老账纸色微陈
+- **墨线落笔**——成本曲线的墨色由淡到浓，最新一笔落朱砂顿点
+- **双谱系四载体**——当票（宣纸正联 / 碑拓负片）与蓝印底册（正联 / 蓝靛），正交明暗主题
+- 直角、无投影、无毛玻璃、宋体标题、等宽数字；对比度与色阶由 `pnpm tokens:check` 在 CI 里强制
+
+## 技术栈
+
+TypeScript monorepo（pnpm workspace / ESM / Node.js 22.12+）
+
+| 层     | 技术                                                           |
+| ------ | -------------------------------------------------------------- |
+| Web    | React 19、Vite、TanStack Router/Query、Tailwind CSS 4、ECharts |
+| API    | Fastify、Zod 契约（前后端共享）、OpenAPI                       |
+| 数据   | PostgreSQL 16+、Drizzle ORM                                    |
+| Worker | pg-boss 后台任务（提醒、回收站清理等）                         |
+
+## 快速开始（Docker）
 
 ```bash
 cp .env.example .env
@@ -53,17 +61,11 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-打开 <http://localhost:3000>。正式部署和手工备份要求见[部署文档](docs/deployment.md)。
+打开 <http://localhost:3000> 完成首次初始化。生产部署要求与手工备份流程见[部署文档](docs/deployment.md)。
 
 ## 本地开发
 
-要求：
-
-- Node.js 22.12+
-- pnpm 11+
-- PostgreSQL 16+
-
-确保 `.env` 中 `DATABASE_URL` 的密码与 `POSTGRES_PASSWORD` 相同，然后执行：
+要求 Node.js 22.12+、pnpm 11+、PostgreSQL 16+（`.env` 的 `DATABASE_URL` 密码与 `POSTGRES_PASSWORD` 一致）：
 
 ```bash
 pnpm install
@@ -72,34 +74,33 @@ pnpm db:migrate
 pnpm dev
 ```
 
-默认开发地址：
-
-- Web：<http://localhost:5173>
-- API：<http://localhost:3000>
-- API 存活检查：<http://localhost:3000/health/live>
+- Web：<http://localhost:5173>　·　API：<http://localhost:3000>　·　存活检查：`/health/live`
 
 ## 工程检查
 
 ```bash
-pnpm check
-```
-
-带 PostgreSQL 的 API 集成测试：
-
-```bash
+pnpm check          # tokens:check → format → lint → typecheck → test → build
+pnpm tokens:check   # 主题色板：对比度、链接与主操作分离、色阶单调、陈纸放宽条款
 TEST_DATABASE_URL=postgres://chronicle:密码@localhost:5432/chronicle \
-  pnpm --filter @thingcost/api test
+  pnpm --filter @thingcost/api test   # API 集成测试
 ```
 
 ## 项目结构
 
 ```text
-apps/web       React 响应式 Web
-apps/api       Fastify API 与生产静态资源服务
-apps/worker    后台任务进程
-packages/*     契约、领域、数据库、配置与 UI 包
+apps/web        React 响应式 Web（当票/账本视觉层）
+apps/api        Fastify API 与生产静态资源服务
+apps/worker     后台任务进程（通知、清理）
+packages/*      Zod 契约、领域计算、Drizzle 数据层、配置、UI 工具
+design-system/  设计语言规范（当票方向）
+docs/           产品规格、架构、路线、部署
 ```
+
+## 文档
+
+- [产品规格](docs/product-spec.md) · [技术架构](docs/architecture.md) · [交付路线](docs/roadmap.md) · [Docker 部署](docs/deployment.md)
+- [设计语言](design-system/pawnshop.md) · [提交与协作约定](AGENTS.md)
 
 ## 许可证
 
-尚未决定。正式公开发布前会明确许可证；当前代码不附带开源授权。
+尚未决定，仓库公开前会选择并补充 `LICENSE` 文件；在此之前代码不附带开源授权。

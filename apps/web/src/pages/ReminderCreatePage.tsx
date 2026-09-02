@@ -1,13 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearch } from '@tanstack/react-router';
-import { ArrowLeft, BellRing, CalendarClock, Check } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Check } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
 
 import type { CreateReminderInput } from '@thingcost/contracts';
+import { cn } from '@thingcost/ui';
 
 import { ApiClientError, api } from '../lib/api.js';
 import { localToday } from '../lib/format.js';
+import { markFresh } from '../lib/fresh-marks.js';
 import { queryKeys } from '../lib/query-keys.js';
+import { Button } from '../components/ui/button.js';
+import {
+  CheckboxField,
+  FormError,
+  FormField,
+  FormGrid,
+  Panel,
+  SelectInput,
+  TextArea,
+  TextInput,
+} from '../components/ui/form.js';
 
 const leadOptions = [
   { minutes: 0, label: '到期时' },
@@ -15,6 +28,27 @@ const leadOptions = [
   { minutes: 10_080, label: '提前 7 天' },
   { minutes: 43_200, label: '提前 30 天' },
 ];
+
+/* 可多选的提前量签条 */
+const leadChip = cn(
+  'inline-flex cursor-pointer items-center gap-1 border border-border',
+  'px-2.5 py-1.5 text-xs text-muted-foreground transition duration-150',
+  'hover:border-border-strong hover:text-foreground',
+  'has-[:checked]:border-primary has-[:checked]:bg-primary',
+  'has-[:checked]:text-primary-foreground',
+  'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring',
+  'has-[:focus-visible]:outline-offset-2',
+);
+
+/* 单选的模式卡：两行文案，比一排 radio 更能说清区别 */
+const modeChoice = cn(
+  'flex flex-1 cursor-pointer flex-col gap-0.5 border border-border p-3',
+  'text-left transition duration-150',
+  'hover:border-border-strong',
+  'has-[:checked]:border-primary has-[:checked]:bg-accent',
+  'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring',
+  'has-[:focus-visible]:outline-offset-2',
+);
 
 export function ReminderCreatePage() {
   const navigate = useNavigate();
@@ -56,6 +90,7 @@ export function ReminderCreatePage() {
   const createReminder = useMutation({
     mutationFn: api.createReminder,
     onSuccess: async (created) => {
+      markFresh(created.id);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.reminders }),
         queryClient.invalidateQueries({ queryKey: queryKeys.upcomingReminders }),
@@ -75,7 +110,7 @@ export function ReminderCreatePage() {
     },
   });
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
+  function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     if (recurring && !endsOn) {
@@ -120,41 +155,35 @@ export function ReminderCreatePage() {
   }
 
   return (
-    <>
-      <Link className="back-link" to="/reminders">
-        <ArrowLeft size={16} /> 返回提醒中心
-      </Link>
-      <header className="topbar page-topbar reminder-create-heading">
-        <div>
-          <p className="eyebrow">New signal</p>
-          <h1>新建提醒</h1>
-          <p className="muted-copy">先记下要发生的事，再决定要不要让它主动找到你。</p>
-        </div>
+    <div className="mx-auto flex max-w-5xl flex-col gap-5">
+      <header className="flex flex-col gap-2 border-b border-border pb-5">
+        <Link
+          className="inline-flex w-fit items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          to="/reminders"
+        >
+          <ArrowLeft aria-hidden="true" className="size-4" /> 返回提醒中心
+        </Link>
+        <p data-slot="ledger-label">New signal</p>
+        <h1 className="text-2xl font-semibold text-heading">新建提醒</h1>
+        <p className="text-sm text-muted-foreground">
+          先记下要发生的事，再决定要不要让它主动找到你。
+        </p>
       </header>
 
-      <form className="reminder-create-layout" onSubmit={submit}>
-        <div className="reminder-form-main">
-          <section className="form-card reminder-form-card">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">What</p>
-                <h2>提醒内容</h2>
-              </div>
-              <BellRing size={20} />
-            </div>
-            <div className="form-grid">
-              <label>
-                标题 *
-                <input
+      <form className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]" onSubmit={submit}>
+        <div className="flex min-w-0 flex-col gap-4">
+          <Panel eyebrow="What" title="提醒内容">
+            <FormGrid>
+              <FormField label="标题 *">
+                <TextInput
                   required
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
                   placeholder="例如：检查相机保修"
                 />
-              </label>
-              <label>
-                类型
-                <select
+              </FormField>
+              <FormField label="类型">
+                <SelectInput
                   value={kind}
                   onChange={(event) =>
                     setKind(event.target.value as CreateReminderInput['kind'])
@@ -165,11 +194,11 @@ export function ReminderCreatePage() {
                   <option value="maintenance">维护保养</option>
                   <option value="loan_return">借出归还</option>
                   <option value="renewal">续期提醒</option>
-                </select>
-              </label>
-              <label>
-                关联物品（可选）
-                <select
+                </SelectInput>
+              </FormField>
+              {/* 物品和订阅互斥：选了一个就清掉另一个 */}
+              <FormField label="关联物品（可选）">
+                <SelectInput
                   value={assetId}
                   onChange={(event) => {
                     setAssetId(event.target.value);
@@ -182,11 +211,10 @@ export function ReminderCreatePage() {
                       {asset.name}
                     </option>
                   ))}
-                </select>
-              </label>
-              <label>
-                关联订阅 / 许可（可选）
-                <select
+                </SelectInput>
+              </FormField>
+              <FormField label="关联订阅 / 许可（可选）">
+                <SelectInput
                   value={subscriptionId}
                   onChange={(event) => {
                     setSubscriptionId(event.target.value);
@@ -199,60 +227,49 @@ export function ReminderCreatePage() {
                       {subscription.name}
                     </option>
                   ))}
-                </select>
-              </label>
-            </div>
-            <label>
-              备注
-              <textarea
+                </SelectInput>
+              </FormField>
+            </FormGrid>
+            <FormField label="备注">
+              <TextArea
+                rows={3}
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder="记录背景、处理方式或需要带上的信息"
               />
-            </label>
-          </section>
+            </FormField>
+          </Panel>
 
-          <section className="form-card reminder-form-card">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">When</p>
-                <h2>时间规则</h2>
-              </div>
-              <CalendarClock size={20} />
-            </div>
-            <div className="form-grid">
-              <label>
-                日期 *
-                <input
+          <Panel eyebrow="When" title="时间规则">
+            <FormGrid>
+              <FormField label="日期 *">
+                <TextInput
                   type="date"
                   required
                   value={dueDate}
                   onChange={(event) => setDueDate(event.target.value)}
                 />
-              </label>
-              <label>
-                提醒时间
-                <input
+              </FormField>
+              <FormField label="提醒时间">
+                <TextInput
                   type="time"
                   required
                   value={timeOfDay}
                   onChange={(event) => setTimeOfDay(event.target.value)}
                 />
-              </label>
-            </div>
-            <label className="toggle-field">
-              <input
-                type="checkbox"
-                checked={recurring}
-                onChange={(event) => setRecurring(event.target.checked)}
-              />
-              <span>按周期重复</span>
-            </label>
-            {recurring && (
-              <div className="form-grid recurring-fields">
-                <label>
-                  每
-                  <select
+              </FormField>
+            </FormGrid>
+
+            <CheckboxField
+              checked={recurring}
+              onChange={(event) => setRecurring(event.target.checked)}
+              label="按周期重复"
+            />
+
+            {recurring ? (
+              <FormGrid className="lg:grid-cols-3">
+                <FormField label="每">
+                  <SelectInput
                     value={frequency}
                     onChange={(event) =>
                       setFrequency(event.target.value as typeof frequency)
@@ -262,202 +279,176 @@ export function ReminderCreatePage() {
                     <option value="week">周</option>
                     <option value="month">月</option>
                     <option value="year">年</option>
-                  </select>
-                </label>
-                <label>
-                  间隔
-                  <input
+                  </SelectInput>
+                </FormField>
+                <FormField label="间隔">
+                  <TextInput
                     type="number"
                     min="1"
                     max="365"
                     value={interval}
                     onChange={(event) => setInterval(event.target.value)}
                   />
-                </label>
-                <label>
-                  结束日期
-                  <input
+                </FormField>
+                <FormField label="结束日期">
+                  <TextInput
                     type="date"
                     required
                     value={endsOn}
                     onChange={(event) => setEndsOn(event.target.value)}
                   />
-                </label>
-              </div>
-            )}
-            <fieldset className="lead-picker">
-              <legend>提前提醒</legend>
-              <div>
+                </FormField>
+              </FormGrid>
+            ) : null}
+
+            <fieldset className="space-y-2 border-0 p-0">
+              <legend data-slot="ledger-label">提前提醒</legend>
+              <div className="flex flex-wrap gap-2">
                 {leadOptions.map((option) => (
-                  <label
-                    className={
-                      leadMinutes.includes(option.minutes)
-                        ? 'lead-option selected'
-                        : 'lead-option'
-                    }
-                    key={option.minutes}
-                  >
+                  <label className={leadChip} key={option.minutes}>
                     <input
+                      className="sr-only"
                       type="checkbox"
                       checked={leadMinutes.includes(option.minutes)}
                       onChange={() => toggleLead(option.minutes)}
                     />
-                    <span>
-                      {leadMinutes.includes(option.minutes) && <Check size={13} />}
-                      {option.label}
-                    </span>
+                    {leadMinutes.includes(option.minutes) ? (
+                      <Check aria-hidden="true" className="size-3" />
+                    ) : null}
+                    {option.label}
                   </label>
                 ))}
               </div>
             </fieldset>
-          </section>
+          </Panel>
 
-          <section className="form-card reminder-form-card">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">How</p>
-                <h2>提醒方式</h2>
-              </div>
-            </div>
-            <div className="mode-choice-grid">
-              <label
-                className={
-                  taskMode === 'notification' ? 'mode-choice selected' : 'mode-choice'
-                }
-              >
+          <Panel eyebrow="How" title="提醒方式">
+            <fieldset className="flex flex-wrap gap-2 border-0 p-0">
+              <legend className="sr-only">提醒模式</legend>
+              <label className={modeChoice}>
                 <input
+                  className="sr-only"
                   type="radio"
+                  name="taskMode"
                   checked={taskMode === 'notification'}
                   onChange={() => {
                     setTaskMode('notification');
                     setMaxRepeats('0');
                   }}
                 />
-                <strong>普通通知</strong>
-                <small>发送后自动结束</small>
+                <strong className="text-sm font-medium text-heading">普通通知</strong>
+                <small className="text-xs text-muted-foreground">发送后自动结束</small>
               </label>
-              <label
-                className={
-                  taskMode === 'actionable' ? 'mode-choice selected' : 'mode-choice'
-                }
-              >
+              <label className={modeChoice}>
                 <input
+                  className="sr-only"
                   type="radio"
+                  name="taskMode"
                   checked={taskMode === 'actionable'}
                   onChange={() => setTaskMode('actionable')}
                 />
-                <strong>待确认任务</strong>
-                <small>可确认、忽略或稍后提醒</small>
+                <strong className="text-sm font-medium text-heading">待确认任务</strong>
+                <small className="text-xs text-muted-foreground">
+                  可确认、忽略或稍后提醒
+                </small>
               </label>
-            </div>
-            {taskMode === 'actionable' && (
-              <div className="form-grid repeat-fields">
-                <label>
-                  未处理时每
-                  <input
+            </fieldset>
+
+            {taskMode === 'actionable' ? (
+              <FormGrid>
+                <FormField label="未处理时重发间隔（分钟）">
+                  <TextInput
                     type="number"
                     min="10"
                     value={repeatIntervalMinutes}
                     onChange={(event) => setRepeatIntervalMinutes(event.target.value)}
                   />
-                  分钟重发
-                </label>
-                <label>
-                  最多重发
-                  <input
+                </FormField>
+                <FormField label="最多重发次数">
+                  <TextInput
                     type="number"
                     min="0"
                     max="20"
                     value={maxRepeats}
                     onChange={(event) => setMaxRepeats(event.target.value)}
                   />
-                  次
-                </label>
+                </FormField>
+              </FormGrid>
+            ) : null}
+
+            <fieldset className="space-y-2 border-0 p-0">
+              <legend data-slot="ledger-label">发送渠道</legend>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ['default', '全局默认'],
+                    ['none', '仅站内'],
+                    ['override', '指定渠道'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <label className={leadChip} key={value}>
+                    <input
+                      className="sr-only"
+                      type="radio"
+                      name="channelMode"
+                      checked={channelMode === value}
+                      onChange={() => {
+                        setChannelMode(value);
+                        if (value === 'none') setChannelKeys([]);
+                      }}
+                    />
+                    {label}
+                  </label>
+                ))}
               </div>
-            )}
-            <fieldset className="channel-picker">
-              <legend>发送渠道</legend>
-              <div className="channel-mode-buttons">
-                <label className={channelMode === 'default' ? 'selected' : ''}>
-                  <input
-                    type="radio"
-                    checked={channelMode === 'default'}
-                    onChange={() => setChannelMode('default')}
-                  />
-                  全局默认
-                </label>
-                <label className={channelMode === 'none' ? 'selected' : ''}>
-                  <input
-                    type="radio"
-                    checked={channelMode === 'none'}
-                    onChange={() => {
-                      setChannelMode('none');
-                      setChannelKeys([]);
-                    }}
-                  />
-                  仅站内
-                </label>
-                <label className={channelMode === 'override' ? 'selected' : ''}>
-                  <input
-                    type="radio"
-                    checked={channelMode === 'override'}
-                    onChange={() => setChannelMode('override')}
-                  />
-                  指定渠道
-                </label>
-              </div>
-              {channelMode === 'override' && (
-                <div className="channel-checkbox-list">
+              {channelMode === 'override' ? (
+                <div className="flex flex-col gap-1.5 pt-1">
                   {(channelsQuery.data ?? []).map((channel) => (
-                    <label key={channel.key}>
-                      <input
-                        type="checkbox"
-                        checked={channelKeys.includes(channel.key)}
-                        onChange={() =>
-                          setChannelKeys((current) =>
-                            current.includes(channel.key)
-                              ? current.filter((key) => key !== channel.key)
-                              : [...current, channel.key],
-                          )
-                        }
-                      />
-                      {channel.name}
-                    </label>
+                    <CheckboxField
+                      key={channel.key}
+                      checked={channelKeys.includes(channel.key)}
+                      onChange={() =>
+                        setChannelKeys((current) =>
+                          current.includes(channel.key)
+                            ? current.filter((key) => key !== channel.key)
+                            : [...current, channel.key],
+                        )
+                      }
+                      label={channel.name}
+                    />
                   ))}
-                  {(channelsQuery.data ?? []).length === 0 && (
-                    <small>还没有可用渠道，请先在提醒中心添加。</small>
-                  )}
+                  {(channelsQuery.data ?? []).length === 0 ? (
+                    <small className="text-xs text-muted-foreground">
+                      还没有可用渠道，请先在提醒中心添加。
+                    </small>
+                  ) : null}
                 </div>
-              )}
+              ) : null}
             </fieldset>
-          </section>
+          </Panel>
         </div>
 
-        <aside className="reminder-submit-panel">
-          <span className="reminder-panel-mark">
-            <BellRing size={22} />
-          </span>
-          <p className="eyebrow">Reminder rule</p>
-          <h2>{title || '未命名提醒'}</h2>
-          <p>
-            {dueDate} {timeOfDay} ·{' '}
-            {recurring
-              ? `每${interval}${frequency === 'month' ? '个月' : frequency === 'week' ? '周' : frequency === 'year' ? '年' : '天'}`
-              : '一次性'}
-          </p>
-          {error && <div className="form-error">{error}</div>}
-          <button
-            className="primary-action"
+        <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-6 lg:self-start">
+          <Panel eyebrow="Reminder rule" title={title || '未命名提醒'}>
+            <p data-slot="amount" className="text-sm text-muted-foreground">
+              {dueDate} {timeOfDay} ·{' '}
+              {recurring
+                ? `每${interval}${frequency === 'month' ? '个月' : frequency === 'week' ? '周' : frequency === 'year' ? '年' : '天'}`
+                : '一次性'}
+            </p>
+          </Panel>
+          <FormError>{error}</FormError>
+          <Button
             type="submit"
             disabled={createReminder.isPending || leadMinutes.length === 0}
           >
             {createReminder.isPending ? '保存中…' : '保存提醒'}
-          </button>
-          <small>
+          </Button>
+          <small className="text-xs text-muted-foreground">
             提醒时间按应用时区调度：{Intl.DateTimeFormat().resolvedOptions().timeZone}
           </small>
         </aside>
       </form>
-    </>
+    </div>
   );
 }

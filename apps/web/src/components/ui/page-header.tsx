@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import { cn } from '@thingcost/ui';
 
-/* 页头：眉标 + 标题 + 说明 + 右侧操作，底部一条暖线收口。
+/* 页头：眉批 + 标题 + 说明 + 右侧操作，底部一条规则线收口。
  * 替换遗留的 .topbar / .page-topbar / .eyebrow / .muted-copy 组合。 */
 export function PageHeader({
   eyebrow,
@@ -28,15 +28,9 @@ export function PageHeader({
     >
       <div className="min-w-0 space-y-2">
         {eyebrow ? (
-          /* 胶囊眉标：淡蓝底 + 亮蓝字。中文用正字距，永远不用负值 */
-          <p
-            className={cn(
-              'inline-flex items-center gap-2 rounded-full border border-link/20',
-              'bg-link/10 px-3 py-1 text-xs tracking-[0.08em] text-link',
-            )}
-          >
-            {eyebrow}
-          </p>
+          /* 页眉眉批：小号等宽 + 字距，账本页眉的写法。
+           * 中文用正字距，永远不用负值。 */
+          <p data-slot="ledger-label">{eyebrow}</p>
         ) : null}
         <h1 className="text-2xl font-semibold text-heading">{title}</h1>
         {description ? (

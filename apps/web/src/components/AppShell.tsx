@@ -18,79 +18,69 @@ import { brand } from '@thingcost/domain';
 import { cn } from '@thingcost/ui';
 
 import { api } from '../lib/api.js';
-import { useI18n } from '../lib/i18n.js';
+import { ganZhiYear } from '../lib/format.js';
 import { queryKeys } from '../lib/query-keys.js';
+import { BrandMark } from './BrandMark.js';
+import { StyleToggle } from './StyleToggle.js';
 import { ThemeToggle } from './ThemeToggle.js';
-import { Button } from './ui/button.js';
 
 interface AppShellProps extends PropsWithChildren {
   username: string;
 }
 
-/* 侧栏条目：选中态是一枚蓝色淡底胶囊，不再用档案页签那条竖线。
+/* 侧栏条目：选中态是一块盖在纸上的墨，不是胶囊。
  * 基础态带透明边框，这样选中时加边框不会让条目变宽。 */
 const navItem = cn(
-  'flex h-10 items-center gap-3 rounded-sm border border-transparent px-3',
-  'text-sm text-muted-foreground transition duration-200',
+  'flex h-10 items-center gap-3 border border-transparent px-3',
+  'text-sm text-muted-foreground transition duration-150',
   'hover:bg-accent hover:text-foreground',
   '[&_svg]:size-[18px] [&_svg]:shrink-0',
 );
 const navItemActive = cn(
   navItem,
-  'border border-link/20 bg-link/10 font-medium text-link hover:bg-link/15 hover:text-link',
+  'border-border-strong bg-secondary font-medium text-heading',
+  'hover:bg-secondary hover:text-heading',
 );
 
 const primaryNav = [
-  { icon: Gauge, key: 'nav.overview', to: '/' },
-  { icon: Package, key: 'nav.assets', to: '/assets' },
-  { icon: Trash2, key: 'nav.recycleBin', to: '/assets/recycle-bin' },
-  { icon: ScrollText, key: 'nav.orders', to: '/orders' },
-  { icon: Heart, key: 'nav.wishlist', to: '/wishlist' },
-  { icon: CreditCard, key: 'nav.subscriptions', to: '/subscriptions' },
-  { icon: Bell, key: 'nav.reminders', to: '/reminders' },
-  { icon: Database, key: 'nav.data', to: '/data' },
+  { icon: Gauge, label: '总览', to: '/' },
+  { icon: Package, label: '全部物品', to: '/assets' },
+  { icon: Trash2, label: '回收站', to: '/assets/recycle-bin' },
+  { icon: ScrollText, label: '购买订单', to: '/orders' },
+  { icon: Heart, label: '种草清单', to: '/wishlist' },
+  { icon: CreditCard, label: '订阅许可', to: '/subscriptions' },
+  { icon: Bell, label: '提醒', to: '/reminders' },
+  { icon: Database, label: '数据与备份', to: '/data' },
 ] as const;
 
+/* 移动端导航覆盖与桌面侧栏同一套入口：哪个都不能在手机上缺席。 */
 const mobileNav = [
-  { key: 'nav.overview', to: '/' },
-  { key: 'nav.mobileAssets', to: '/assets' },
-  { key: 'nav.mobileOrders', to: '/orders' },
-  { key: 'nav.mobileWishlist', to: '/wishlist' },
-  { key: 'nav.reminders', to: '/reminders' },
-  { key: 'nav.mobileData', to: '/data' },
+  { label: '总览', to: '/' },
+  { label: '物品', to: '/assets' },
+  { label: '回收站', to: '/assets/recycle-bin' },
+  { label: '订单', to: '/orders' },
+  { label: '种草', to: '/wishlist' },
+  { label: '订阅', to: '/subscriptions' },
+  { label: '提醒', to: '/reminders' },
+  { label: '数据', to: '/data' },
+  { label: '设置', to: '/settings' },
 ] as const;
-
-function BrandMark() {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        'flex size-7 shrink-0 items-center justify-center rounded-sm',
-        'bg-primary text-sm font-medium text-primary-foreground',
-      )}
-    >
-      物
-    </span>
-  );
-}
 
 export function AppShell({ children, username }: AppShellProps) {
   const queryClient = useQueryClient();
-  const { locale, setLocale, t } = useI18n();
   const logout = useMutation({
     mutationFn: api.logout,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.session });
     },
   });
-  const toggleLocale = () => setLocale(locale === 'zh-CN' ? 'en-US' : 'zh-CN');
 
   return (
     <div className="min-h-screen bg-background lg:grid lg:grid-cols-[240px_1fr]">
       <a
         className={cn(
           'sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50',
-          'focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:text-sm',
+          'focus:bg-card focus:px-3 focus:py-2 focus:text-sm',
           'focus:ring-2 focus:ring-ring',
         )}
         href="#chronicle-main"
@@ -101,11 +91,11 @@ export function AppShell({ children, username }: AppShellProps) {
       {/* 桌面侧栏 */}
       <aside
         className={cn(
-          'hidden border-r border-border bg-background-soft/70 backdrop-blur-md lg:flex',
+          'hidden border-r border-border bg-background-soft lg:flex',
           'lg:sticky lg:top-0 lg:h-screen lg:flex-col lg:gap-6 lg:px-3 lg:py-5',
         )}
       >
-        <Link className="flex items-center gap-2.5 px-0.5" to="/" aria-label={t('shell.brandAria')}>
+        <Link className="flex items-center gap-2.5 px-0.5" to="/" aria-label="物纪总览">
           <BrandMark />
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold text-foreground">
@@ -117,40 +107,41 @@ export function AppShell({ children, username }: AppShellProps) {
           </span>
         </Link>
 
-        <nav className="flex flex-1 flex-col gap-0.5" aria-label={t('shell.mainNav')}>
-          {primaryNav.map(({ icon: Icon, key, to }) => (
+        <nav className="flex flex-1 flex-col gap-0.5" aria-label="主导航">
+          {primaryNav.map(({ icon: Icon, label, to }) => (
             <Link
               key={to}
               className={navItem}
               activeProps={{ className: navItemActive }}
-              /* 总览只在精确匹配时高亮；物品列表不能被回收站子路由点亮。
-               * exactOptionalPropertyTypes 下不能显式传 undefined，只能整个属性省掉。 */
+              /* 总览与物品列表只在精确匹配时高亮，子路由不点亮。 */
               {...(to === '/' || to === '/assets'
                 ? { activeOptions: { exact: true } }
                 : {})}
               to={to}
             >
               <Icon aria-hidden="true" strokeWidth={1.8} />
-              <span className="truncate">{t(key)}</span>
+              <span className="truncate">{label}</span>
             </Link>
           ))}
         </nav>
 
         <div className="flex flex-col gap-0.5 border-t border-border pt-4">
           <div className="flex h-9 items-center justify-between pr-1 pl-3">
-            <span className="text-xs text-muted-foreground">{t('theme.label')}</span>
+            <span className="text-xs text-muted-foreground">界面主题</span>
             <ThemeToggle />
           </div>
           <div className="flex h-9 items-center justify-between pr-1 pl-3">
-            <span className="text-xs text-muted-foreground">{t('locale.label')}</span>
-            <Button variant="ghost" size="sm" type="button" onClick={toggleLocale}>
-              {locale === 'zh-CN' ? t('locale.en') : t('locale.zh')}
-            </Button>
+            <span className="text-xs text-muted-foreground">档案载体</span>
+            <StyleToggle />
           </div>
 
-          <Link className={navItem} activeProps={{ className: navItemActive }} to="/settings">
+          <Link
+            className={navItem}
+            activeProps={{ className: navItemActive }}
+            to="/settings"
+          >
             <Settings aria-hidden="true" strokeWidth={1.8} />
-            <span className="truncate">{t('nav.settings')}</span>
+            <span className="truncate">设置</span>
           </Link>
           <button
             className={cn(navItem, 'disabled:opacity-45')}
@@ -160,10 +151,15 @@ export function AppShell({ children, username }: AppShellProps) {
           >
             <LogOut aria-hidden="true" strokeWidth={1.8} />
             <span className="truncate">
-              {logout.isPending ? t('auth.loggingOut') : t('auth.logout', { username })}
+              {logout.isPending ? '正在退出…' : `退出 ${username}`}
             </span>
           </button>
-          <p className="px-3 pt-2 text-xs text-muted-foreground">{t('shell.milestone')}</p>
+
+          {/* 票角落款：干支纪年（以公历年计，不做立春换年） */}
+          <p className="px-3 pt-3 font-serif text-[11px] tracking-[0.2em] text-muted-foreground">
+            {'岁在'}
+            {ganZhiYear(new Date().getFullYear())}
+          </p>
         </div>
       </aside>
 
@@ -171,7 +167,7 @@ export function AppShell({ children, username }: AppShellProps) {
       <header
         className={cn(
           'sticky top-0 z-30 flex flex-col gap-2 border-b border-border',
-          'bg-background/95 px-4 py-3 backdrop-blur lg:hidden',
+          'bg-background px-4 py-3 lg:hidden',
         )}
       >
         <div className="flex items-center justify-between gap-2">
@@ -182,38 +178,31 @@ export function AppShell({ children, username }: AppShellProps) {
             </span>
           </Link>
           <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              type="button"
-              onClick={toggleLocale}
-              aria-label={t('locale.label')}
-            >
-              {locale === 'zh-CN' ? 'EN' : '中'}
-            </Button>
-            <ThemeToggle />
+            {/* 触控目标按自己的无障碍承诺给到 44px */}
+            <StyleToggle className="size-11" />
+            <ThemeToggle className="size-11" />
           </div>
         </div>
         <nav
           className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5"
-          aria-label={t('shell.mobileNav')}
+          aria-label="手机主导航"
         >
-          {mobileNav.map(({ key, to }) => (
+          {mobileNav.map(({ label, to }) => (
             <Link
               key={to}
               className={cn(
-                'shrink-0 rounded-full border border-transparent px-3 py-1.5 text-sm whitespace-nowrap',
-                'text-muted-foreground transition duration-200 hover:bg-accent',
+                'shrink-0 border border-transparent px-3 py-1.5 text-sm whitespace-nowrap',
+                'text-muted-foreground transition duration-150 hover:bg-accent',
               )}
               activeProps={{
-                className: 'border-link/20 bg-link/10 font-medium text-link',
+                className: 'border-border-strong bg-secondary font-medium text-heading',
               }}
               {...(to === '/' || to === '/assets'
                 ? { activeOptions: { exact: true } }
                 : {})}
               to={to}
             >
-              {t(key)}
+              {label}
             </Link>
           ))}
         </nav>

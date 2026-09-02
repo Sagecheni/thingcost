@@ -26,6 +26,7 @@ export const notificationProviderSchema = z.enum([
   'wecom',
   'serverchan',
   'pushplus',
+  'bark',
 ]);
 export const notificationChannelSourceSchema = z.enum(['environment', 'database']);
 export const deliveryKindSchema = z.enum(['lead', 'repeat', 'snooze']);
@@ -295,6 +296,18 @@ export const createNotificationChannelSchema = z.discriminatedUnion('provider', 
     token: z.string().trim().min(8).max(300),
     topic: z.string().trim().max(120).optional(),
   }),
+  z.object({
+    provider: z.literal('bark'),
+    name: z.string().trim().min(1).max(120),
+    enabled: z.boolean().default(true),
+    isDefault: z.boolean().default(false),
+    /** Bark server base URL, including self-hosted instances. */
+    serverUrl: z.url(),
+    /** Device Key shown by the Bark iOS app — encrypted at rest. */
+    deviceKey: z.string().trim().min(4).max(300),
+    group: z.string().trim().max(120).optional(),
+    sound: z.string().trim().max(120).optional(),
+  }),
 ]);
 
 export const updateNotificationChannelSchema = z.object({
@@ -309,6 +322,10 @@ export const updateNotificationChannelSchema = z.object({
   sendKey: z.string().trim().min(8).max(200).optional(),
   token: z.string().trim().min(8).max(300).optional(),
   topic: z.string().trim().max(120).optional(),
+  serverUrl: z.url().optional(),
+  deviceKey: z.string().trim().min(4).max(300).optional(),
+  group: z.string().trim().max(120).optional(),
+  sound: z.string().trim().max(120).optional(),
 });
 
 export const testNotificationChannelInputSchema = z.object({

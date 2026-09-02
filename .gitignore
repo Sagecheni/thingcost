@@ -1,5 +1,6 @@
 # dependencies
 node_modules/
+.pnpm-store/
 
 # builds and tests
 dist/
@@ -23,6 +24,7 @@ exports/
 .idea/
 .vscode/
 .pi/
+.impeccable/
 
 # logs
 *.log

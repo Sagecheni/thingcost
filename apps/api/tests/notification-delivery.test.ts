@@ -46,12 +46,13 @@ describe('notification channel test delivery', () => {
     expect(init.body).toContain('chronicle.notification_test');
   });
 
-  it('sends Telegram, Enterprise WeChat, Server酱, and PushPlus payloads', async () => {
+  it('sends Telegram, Enterprise WeChat, Server酱, PushPlus, and Bark payloads', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response('{"ok":true}', { status: 200 }))
       .mockResolvedValueOnce(new Response('{"errcode":0}', { status: 200 }))
       .mockResolvedValueOnce(new Response('{"code":0}', { status: 200 }))
+      .mockResolvedValueOnce(new Response('{"code":200}', { status: 200 }))
       .mockResolvedValueOnce(new Response('{"code":200}', { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -75,13 +76,30 @@ describe('notification channel test delivery', () => {
         channel('pushplus', { token: 'pushplus-token', topic: 'chronicle' }),
       ),
     ).resolves.toMatchObject({ provider: 'pushplus' });
+    await expect(
+      sendNotificationChannelTest(
+        channel('bark', {
+          serverUrl: 'https://api.day.app/',
+          deviceKey: 'bark-device-key',
+          group: 'chronicle',
+          sound: 'minuet',
+        }),
+      ),
+    ).resolves.toMatchObject({ provider: 'bark' });
 
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
     expect((fetchMock.mock.calls[1]?.[1] as RequestInit).body).toContain('msgtype');
     expect((fetchMock.mock.calls[2]?.[1] as RequestInit).body).toContain('desp');
     expect(fetchMock.mock.calls[3]?.[0] as string).toBe('https://www.pushplus.plus/send');
     expect((fetchMock.mock.calls[3]?.[1] as RequestInit).body).toContain(
       'pushplus-token',
+    );
+    expect(fetchMock.mock.calls[4]?.[0] as string).toBe('https://api.day.app/push');
+    expect((fetchMock.mock.calls[4]?.[1] as RequestInit).body).toContain(
+      '"device_key":"bark-device-key"',
+    );
+    expect((fetchMock.mock.calls[4]?.[1] as RequestInit).body).toContain(
+      '"group":"chronicle"',
     );
   });
 

@@ -79,7 +79,8 @@ import {
   type WishlistListQuery,
 } from '@thingcost/contracts';
 
-export function getApiErrorMessage(error: unknown): string {
+export function getApiErrorMessage(error: unknown): string | null {
+  if (error === null || error === undefined) return null;
   return error instanceof Error ? error.message : '请求失败，请稍后重试';
 }
 

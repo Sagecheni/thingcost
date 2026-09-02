@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">物之年轮</title>
+  <desc id="desc">一个抽象器物轮廓，内部的方形螺旋记录持有时间，朱红断点标记一次生命周期事件。</desc>
+  <path
+    fill="#FAF8F1"
+    d="M208 132H816V190H874V798H816V876H208V818H150V210H208Z"
+  />
+  <path
+    fill="#12324E"
+    fill-rule="evenodd"
+    d="M258 266H766V630H370V378H646V526H494V482H602V422H414V586H722V310H302V698H736V742H258ZM472 482H514V526H472Z"
+  />
+  <path fill="#B1372C" d="M404 482H472V526H404Z" />
+</svg>

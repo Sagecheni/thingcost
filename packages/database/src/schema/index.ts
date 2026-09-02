@@ -132,6 +132,7 @@ export const notificationProviderEnum = pgEnum('notification_provider', [
   'wecom',
   'serverchan',
   'pushplus',
+  'bark',
 ]);
 
 export const subscriptionKindEnum = pgEnum('subscription_kind', [

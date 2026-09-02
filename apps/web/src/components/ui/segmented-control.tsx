@@ -1,7 +1,8 @@
 import { cn } from '@thingcost/ui';
 
-/* 分段控件：一组互斥选项装在同一个边框里。
- * 选中项用实心墨青，未选中只有文字色变化 —— 不用阴影不用位移。 */
+/* 分段控件：一组互斥选项装在同一个框里。
+ * 选中项用实心墨块，未选中只有文字色变化 —— 不用阴影不用位移。
+ * 焦点环吃全局 :focus-visible 的直角描边，不另起 ring 配方。 */
 export function SegmentedControl<Value extends string | number>({
   value,
   options,
@@ -20,8 +21,7 @@ export function SegmentedControl<Value extends string | number>({
       role="group"
       aria-label={label}
       className={cn(
-        'inline-flex items-center gap-0.5 rounded-full border border-border',
-        'bg-card p-1 backdrop-blur-md',
+        'inline-flex items-center gap-0.5 border border-border bg-card p-1',
         className,
       )}
     >
@@ -34,10 +34,9 @@ export function SegmentedControl<Value extends string | number>({
             aria-pressed={active}
             onClick={() => onChange(option.value)}
             className={cn(
-              'rounded-full px-3 py-1 text-xs whitespace-nowrap transition duration-200',
-              'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              'px-3 py-1 text-xs whitespace-nowrap transition duration-150',
               active
-                ? 'bg-primary font-medium text-primary-foreground shadow-paper'
+                ? 'bg-primary font-medium text-primary-foreground'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >

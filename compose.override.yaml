@@ -1,0 +1,11 @@
+# 本地开发覆盖：把 postgres 发布到宿主机。
+#
+# compose.yaml 里的 postgres 只在 compose 网络内可达（部署形态下由同网络的
+# app 容器连接），但 `pnpm dev` 是在宿主机上跑 API 的，需要 localhost:5432。
+#
+# Compose 会自动读取本文件，无需额外参数。仅用于本地开发，不要用于部署。
+
+services:
+  postgres:
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'

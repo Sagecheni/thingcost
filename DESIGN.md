@@ -1,181 +1,169 @@
 ---
-name: 物纪 · Chronicle Sandbox Collection World
-description: 把真实物品、时间和成本放进一个原创沙盒收藏世界；像打开背包一样管理拥有，但所有账务仍然真实可追溯。
+name: 物纪 · Chronicle Ledger
+description: 把真实物品、时间和成本记进一本账。每件物品是一张存根，日均成本是票面金额，未知成本用朱红勾注——从不伪装成零。
+lineages:
+  stub:
+    displayName: 存根
+    positive: 正联 · 纸白蓝黑墨朱红勾注
+    negative: 负片存底 · 缩微胶片
+  blueprint:
+    displayName: 图纸
+    positive: 白图 whiteprint · 白底蓝线
+    negative: 蓝晒 cyanotype · 深普鲁士蓝底白线
 colors:
-  day-sky: '#8fcbea'
-  day-grass: '#6e9f3f'
-  oak: '#795333'
-  oak-light: '#a87546'
-  oak-dark: '#3d291d'
-  daylight-stone: '#c4c0ad'
-  cave: '#1e2638'
-  cave-deep: '#101521'
-  night-stone: '#41495a'
-  gold: '#ffd45a'
-  grass-green: '#8fbd45'
-  water-cyan: '#68c8d3'
-  danger-red: '#ef6a5b'
+  stub-positive-ground: '#e8e4d8'
+  stub-positive-sheet: '#faf8f1'
+  stub-positive-ink: '#1b1a16'
+  stub-negative-ground: '#101210'
+  stub-negative-sheet: '#1a1c18'
+  stub-negative-ink: '#e8e6dc'
+  blueprint-positive-ground: '#eef2f5'
+  blueprint-positive-ink: '#12324e'
+  blueprint-negative-ground: '#0d1e30'
+  blueprint-negative-sheet: '#14304c'
+  vermilion-annotation: '#b1372c'
 typography:
-  pixel:
-    fontFamily: 'Fusion Pixel Chronicle, PingFang SC, sans-serif'
-    usage: '短标题、导航、按钮、标签、日期和数字读数'
   body:
-    fontFamily: 'PingFang SC, Hiragino Sans GB, Microsoft YaHei, system-ui, sans-serif'
-    fontSize: '16px'
-    lineHeight: 1.6
+    fontFamily: 'PingFang SC, Hiragino Sans GB, Noto Sans SC, Microsoft YaHei, system-ui, sans-serif'
+    fontSize: '15px'
+    lineHeight: 1.7
+  figures:
+    fontFamily: 'ui-monospace, SF Mono, Menlo, Consolas, monospace'
+    usage: '全部金额、日期、计数、天数和表头眉批'
 spacing:
-  visualPixel: '4px'
-  rhythm: '8px'
+  rhythm: '4px'
   touchTarget: '44px minimum'
 components:
-  inventory-slot:
-    border: '3px dark edge'
-    shadow: 'inset light/dark bevel'
+  sheet:
+    border: '1px, 顶边 4px 粗规则线'
     radius: '0'
-  block-button:
-    border: '3px'
-    height: '46px'
-    motion: 'two-step press, no smooth float'
+    shadow: 'none'
+  perforation:
+    rule: '1px dashed, 两端 11px 半圆咬进页面底色'
 ---
 
 # Design System: 物纪 · Chronicle
 
+> **现行方向已更新（v2 · 当铺）**：本文件是 v1「账簿/存根」方向的完整记录。
+> 当前实现沿用的方向与详细 token 见 `design-system/pawnshop.md`。
+
 ## Creative North Star
 
-**Original sandbox collection world.** Chronicle should feel like opening the inventory of a persistent personal world. Each physical possession occupies a readable slot; lifecycle events form a journal; cash events form a coin ledger; reminders behave like a quest board; export and import behave like world-save management.
+**这是一本账。** 每件耐用品是一张存根：头联写分类和状态，票面写日均成本，骑缝撕开，存根脚记净成本和服役天数。首页是总账页，物品详情是一份完整档案，时间线是流水账。
 
-The world borrows only structural qualities from sandbox pixel games: block-built panels, limited palettes, beveled slots, crisp sprite-like icons, integer geometry, and short frame-stepped feedback. It does not copy Minecraft or Terraria textures, characters, icons, names, or interface assets.
+账本的语法不是装饰，是约束。账本里未知的格子留空或者用红笔勾注，从不填零——这恰好是产品原则第 4 条「计算口径透明，未知值不伪装成零」的视觉形状。金额天然成列，因为账本的数字一直是等宽的。折线不平滑，因为账目不该被插值美化。
 
-This is still an operating interface, not a score screen. Amounts remain exact, unknown is never shown as zero, destructive actions stay explicit, and Chinese reading comfort outranks decorative fidelity.
+界面仍然是操作台不是收藏品：金额精确，破坏性操作显式，中文阅读舒适度高于隐喻还原度。
 
-## Scenes
+## 两条谱系，各自带正负片
 
-### Daylight world
+`data-style`（谱系）与 `data-theme`（明暗）**正交**，互不干扰。
 
-The user opens Chronicle in ordinary daylight. The page is a clear sky field (`#8fcbea`) over a restrained grass horizon (`#6e9f3f`). Navigation is oak, panels are light stone or parchment-stone, body text is dark brown-black, and gold identifies committed actions and important costs.
+|                      | 亮色（正）                    | 暗色（负）                  |
+| -------------------- | ----------------------------- | --------------------------- |
+| **存根** `stub`      | 正联 · 白纸、蓝黑墨、朱红勾注 | 负片存底 · 缩微胶片         |
+| **图纸** `blueprint` | 白图 whiteprint · 白底蓝线    | 蓝晒 cyanotype · 深蓝底白线 |
 
-### Night cave
+四个组合都有历史依据。晒图工艺里 blueprint（蓝底白线）与 whiteprint / diazo（白底蓝线）本来就是一对；负片是同一张存根的存底，不是"另一个主题"。
 
-The dark scene is a calm cave inventory rather than a black control room. The canvas is blue-charcoal (`#1e2638`), panels are slate stone (`#41495a`), navigation is dark oak, labels are warm bone, gold remains the primary action/readout, water cyan supports charts, and grass green communicates selection or healthy state.
+**暗色不是"深色的纸"**——那是矛盾修辞。暗色是换了一种真实存在的深色档案载体。
 
-Light and dark themes share materials and semantics, not literal colors.
+默认载体是存根，它和产品名同源。
 
-## Material grammar
+## 实现结构
 
-### Oak navigation
+**两级间接。** 载体只定义 `--c-*` 原始色值（约 20 个），语义 token 的映射（`--background` / `--foreground` / `--destructive` / `--chart-1..5` …）只写一遍。自定义属性惰性求值，重定义 `--c-bg` 会让引用它的 `--background` 跟着变。加第五种载体约 15 行。
 
-The desktop rail is a vertical oak storage wall built from 32–35px plank courses. Every route is a physical inventory key with a dark 3px edge, light upper-left bevel, dark lower-right bevel, and a square authored pixel icon. The active route is grass green with a gold outer selection frame.
+**材质进 CSS，布局留 Tailwind。** 圆角、边框、投影、hover 行为全部挂在 `[data-slot='…']` 选择器上，按 `data-style` 分支。组件代码只写布局、间距、字号，换载体时一行不动。规则放在 `components` 层：压得过 legacy，又输给 utilities，页面上一个 Tailwind 类就能就地覆盖。
 
-The mobile header uses the same oak and turns routes into horizontally scrollable hotbar keys. Selection never changes item width.
+**图表零 JS 分支。** `readChartPalette()` 全部颜色从 CSS 变量读取；`MutationObserver` 同时监听 `data-theme` 和 `data-style`。换载体时图表自动跟着变，没有第二套调色板。
 
-### Stone panels
+## 材质语法
 
-Operational panels use stone rather than generic cards:
+### 纸面 sheet
 
-- 3px dark outer edge
-- lighter upper-left inset edge
-- darker lower-right inset edge
-- 4–6px world shadow where elevation is necessary
-- zero border radius
+- 1px 细边框
+- 顶边 4px 粗规则线——撕下来的那一条，存根的识别特征
+- 直角，零圆角
+- 不发光：`--shadow-paper: none`。抬升靠边框和位置，不靠柔光
+- 不用毛玻璃：纸是实心的，`--card` 与 `--card-solid` 同值
 
-Panels may be grouped, but nested decorative panels are avoided. Inner records become recessed inventory slots.
+### 骑缝 perforation
 
-### Inventory slots
+存根与票根之间那道撕口：1px 虚线，两端 11px 半圆。半圆填充必须是 `--background` 而不是 `--card`——它咬的是页面底色，卡片之间露出来的那块。
 
-Inputs, metric icon wells, status cells, event rows, and empty-state wells use a dark recessed slot. The slot has a dark upper-left inset and a lighter lower-right inset. Text is never placed directly on noisy texture.
+### 账页横线
 
-### Chest readout
+`body` 底纹是 27px 间距的横线。**不用 `background-attachment: fixed`**：纸要跟着内容滚，钉死会露馅成"玻璃后面的背景板"。
 
-The Dashboard daily-cost surface is a large oak chest panel with two gold latches, a recessed coin slot, and one large gold readout. It does not include fake telemetry, progress bars, or decorative HUD geometry.
+### 可点击的纸
 
-## Pixel system
+hover 压一道内描边（`inset 0 0 0 1px`）加深顶边，不上浮不位移。纸不会飘起来，它只是被按住了。静态面板没有任何 hover 反馈，否则会暗示它可以点。
 
-- **Visual pixel:** 4px.
-- **Spacing rhythm:** multiples of 8px for layout, with 4px reserved for edges and sprite movement.
-- **Edges:** 2–4px, always integer aligned.
-- **Corners:** square. No softened 2px pseudo-rounding.
-- **Icons:** authored on a 16×16 grid using filled rectangles, rendered with `shape-rendering: crispEdges`.
-- **Images:** actual attachment photos remain smooth and unmodified; only the frame is pixel-built.
-- **Motion:** `steps(2, end)` for short equip/press feedback. No continuous bobbing, glowing, floating, or generic card lift.
-- **Shadows:** hard offsets are allowed because block construction is the committed world, not a neobrutalist costume.
+## 数字
 
-## Typography
+**全部金额、日期、计数、天数走等宽**（`[data-slot='amount']`）。账本的数字天然成列，不需要额外对齐工作。
 
-### Fusion Pixel Chronicle
+票面金额单位（`/ 天`）单独排小一号，不焊进格式化字符串里——否则没法分开排版。
 
-Self-hosted Fusion Pixel Font 10px proportional builds cover Simplified Chinese and Latin. The font is licensed under SIL OFL 1.1 and lives in `apps/web/public/fonts/`.
+缺值的写法分两种，含义不同：
 
-Use it for:
+- **朱红勾注**（`[data-slot='annotation']`，左侧 3px 竖线）：成本未记录、待补录、异常。红笔的意思是"这条需要处理"
+- **灰色破折号 `—`**：口径不适用。比如成本已知但服役 0 天，分母为零摊不出日均——这是合法状态不是缺数据
 
-- route and section titles
-- primary and secondary actions
-- navigation labels
-- dates and short status labels
-- amounts, counts, and compact metadata
+`¥0` 只在真的是零时出现。
 
-Do not use it for paragraphs, form explanations, audit notes, long timeline remarks, or error recovery text.
+## 色彩语义
 
-### System body
+- **朱红**：警示、未知、破坏性操作。四个载体同属红橙族，只调对比度不动色相——同一语义换色相会让颜色不再表意
+- **绿**：收入、健康、完成
+- **主色**：存根族用蓝黑墨（旧账本记账用的就是它）；图纸族亮色用饱和蓝，暗色用纸白（蓝晒上最有力的标记就是留白）
+- **图表色阶**：载体自身的墨，单色相，明度单调。亮色越大越深，暗色越大越亮
 
-Chinese body copy uses PingFang SC, Hiragino Sans GB, Microsoft YaHei, or system-ui at a 16px baseline and roughly 1.6 line height. Pixel style must never make record reading tiring.
+颜色永远和文字或形状配对出现。
 
-## Color semantics
+## 图表
 
-- **Gold:** primary action, important cost readout, selected focus.
-- **Grass green:** active route, held/healthy state, successful completion.
-- **Water cyan:** charts, links, informational support.
-- **Red clay:** destructive action, failed state, repair/risk.
-- **Stone neutrals:** structure and ordinary data.
-- **Oak:** navigation and world-save/chest metaphors.
+- **净投入用阶梯线**（`step: 'end'`）。净投入本来就是阶梯：平的时候什么也没买，跳一级就是入了一件。插值成斜线等于凭空画出不存在的中间状态
+- **日均成本用普通折线**：分母天天涨，这是真的连续量
+- 不平滑，方点标记，tooltip 直角无阴影
+- 树图直角，间隙用 `--card-solid`
 
-Color is always paired with text or icon shape.
+## 排版
 
-## Component rules
+### 正文
 
-### Buttons
+中文系统栈，15px / 1.7。**不引入外部 web font**——产品要求核心功能本地可用，挂 CDN 字体会让离线环境下排版塌掉。字距永远不用负值，中文负字距会糊成一团。
 
-Buttons are block keys at least 46px high. A normal key has a 3px edge and inset bevel. Hover brightens or moves by one 4px pixel at most. Pressing shifts toward its shadow in two discrete frames. Disabled keys retain shape and readable labels.
+### 眉批 ledger-label
 
-### Forms
+小号等宽 + 0.1em 字距，账本页眉的写法。**12px 是中文可读的下限**，不能照搬拉丁标签常用的 10px。`text-transform: uppercase` 对中文是空操作，只影响英文界面。
 
-Labels remain outside fields. Fields are recessed dark slots in both themes because a consistent editing well is easier to identify than a light-theme inversion. Focus adds a visible gold frame. Errors include problem and recovery copy; color alone is insufficient.
+## 响应式
 
-### Asset cards
+- 桌面：240px 侧栏 + 流体正文区
+- 物品卡片：`sm` 两列、`lg` 三列、`xl` 四列
+- 840px 以下：粘顶横向滚动导航
+- 表格和图表只在自己的框里横向滚动，页面本身永不横向溢出
 
-Asset cards are inventory records, not collectible-game rarity cards. They use a stone frame, optional real photo, category label, name, cost, and status. Hover equips the whole slot with a gold frame. Real photos are not pixelated.
+## 无障碍
 
-### Timelines
+- 正文对比度四种载体均 ≥ 4.5:1
+- 焦点框 2px 实线 + 2px offset，四种载体都可见
+- 状态永远由文字承担，颜色只是辅助
+- 交互控件不低于 42–44px
+- 动效遵守 `prefers-reduced-motion`
+- 信息不依赖悬停
 
-Lifecycle and financial timelines are separate stone journal panels. Each record is a recessed slot connected by a 4px track. Current state uses green; cash flow uses gold or red with explicit direction labels. Audit correction controls remain visible.
+## 避免
 
-### Charts
+- 圆角、毛玻璃、柔光投影、卡片上浮——上一版的玻璃语言已经整体移除
+- 卡片旋转、按位置轮换的配色（颜色必须表意，位置不是语义）
+- 纯拉丁展示字体做标题（中文会掉回退，中英两副长相）
+- 把未知值渲染成 `¥0`
+- 平滑插值的账目折线
+- 像素游戏语法：方块材质、像素图标、物品槽、稀有度——这是归档的旧方向，不再适用
 
-Chart lines are unsmoothed and use square symbols. Axes and tooltips use the same slot, edge, gold, water, and pixel-label system. Charts remain accessible data visualizations, not scenery.
+## 维护成本
 
-## Responsive rules
-
-- Desktop: 248px oak storage rail and a fluid world field.
-- Under 1080px: narrower rail and two-column metric inventory.
-- Under 840px: sticky oak hotbar header, stacked panels, full-width page actions.
-- Under 560px: one-column metrics, 16px page gutters, readable 42–58px readout, no page-level horizontal overflow.
-- Photos, tables, and chart canvases keep their intrinsic clarity and scroll only inside their own frame.
-
-## Accessibility and interaction
-
-- Keyboard users receive a skip link and visible gold focus frames.
-- All interactive controls remain at least 42–46px high.
-- Active navigation uses text, color, frame, and icon state together.
-- Motion honors `prefers-reduced-motion`.
-- Body contrast is at least 4.5:1 in both themes.
-- No information depends only on hover.
-
-## Avoid
-
-- Industrial terminal/HUD styling
-- black-and-neon cyberpunk palettes
-- fake CRT scanlines or generic pixel grids
-- smooth Lucide icons in core navigation and Dashboard
-- copying copyrighted game sprites or textures
-- blurred glass, soft pill cards, rounded SaaS controls
-- pixel fonts for long Chinese prose
-- gamified scores, rarity tiers, achievements, health bars, or fake quests
+两条谱系意味着每个新组件要在 **4 个组合**下检查对比度和可读性，不是 2 个。这是双谱系的固有成本。

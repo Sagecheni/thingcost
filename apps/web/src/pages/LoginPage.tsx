@@ -1,8 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type FormEvent, useState } from 'react';
 
+import { brand } from '@thingcost/domain';
+
+import { BrandMark } from '../components/BrandMark.js';
+import { SealMark } from '../components/SealMark.js';
 import { api } from '../lib/api.js';
 import { queryKeys } from '../lib/query-keys.js';
+import { Button } from '../components/ui/button.js';
+import { FormError, FormField, TextInput } from '../components/ui/form.js';
 
 export function LoginPage() {
   const queryClient = useQueryClient();
@@ -21,55 +27,56 @@ export function LoginPage() {
   };
 
   return (
-    <main className="auth-layout auth-layout-compact">
-      <section className="auth-story">
-        <div className="brand-mark brand-mark-large" aria-hidden="true">
-          物
-        </div>
-        <p className="eyebrow">物纪 · Chronicle</p>
-        <h1>欢迎回来。</h1>
-        <p>时间仍在继续，回来看看每件拥有的成本与故事。</p>
-      </section>
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-5 py-12">
+      <div className="space-y-2">
+        <BrandMark className="size-11" />
+        <p data-slot="ledger-label">
+          {brand.chineseName} · {brand.englishName}
+        </p>
+        <h1 className="text-2xl font-semibold text-heading">欢迎回来。</h1>
+        <p className="text-sm text-muted-foreground">
+          时间仍在继续，回来看看每件拥有的成本与故事。
+        </p>
+      </div>
 
-      <section className="auth-panel">
-        <p className="eyebrow">管理员登录</p>
-        <h2>打开物纪</h2>
-        <form className="form-stack" onSubmit={submit}>
-          <label>
-            管理员名称
-            <input
+      <section data-slot="card" className="flex flex-col gap-4 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-0.5">
+            <p data-slot="ledger-label">管理员登录</p>
+            <h2 className="text-base font-semibold text-heading">打开物纪</h2>
+          </div>
+          {/* 门面凭印：登录是当票生效的那一刻 */}
+          <SealMark className="mt-0.5" />
+        </div>
+        <form className="flex flex-col gap-3" onSubmit={submit}>
+          <FormField label="管理员名称">
+            <TextInput
               autoComplete="username"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               required
               autoFocus
             />
-          </label>
-          <label>
-            密码
-            <input
+          </FormField>
+          <FormField label="密码">
+            <TextInput
               autoComplete="current-password"
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
             />
-          </label>
+          </FormField>
 
-          {login.error && (
-            <p className="form-error" role="alert">
-              {login.error.message}
-            </p>
-          )}
+          <FormError>{login.error?.message}</FormError>
 
-          <button
-            className="primary-action primary-action-wide"
-            disabled={login.isPending}
-          >
+          <Button className="w-full" disabled={login.isPending}>
             {login.isPending ? '正在验证…' : '登录'}
-          </button>
+          </Button>
         </form>
-        <p className="auth-footnote">忘记密码时，请通过容器内 CLI 执行安全重置。</p>
+        <p className="text-xs text-muted-foreground">
+          忘记密码时，请通过容器内 CLI 执行安全重置。
+        </p>
       </section>
     </main>
   );

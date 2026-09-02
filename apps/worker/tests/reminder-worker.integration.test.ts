@@ -1,10 +1,11 @@
+import { randomUUID } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 
 import { sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 
-import type { RuntimeConfig } from '@thingcost/config';
-import { createDatabase, reminders } from '@thingcost/database';
+import { encryptSecret, type RuntimeConfig } from '@thingcost/config';
+import { createDatabase, notificationChannels, reminders } from '@thingcost/database';
 
 import { runReminderCycle } from '../src/reminder-worker.js';
 
@@ -39,13 +40,18 @@ const testConfig: RuntimeConfig = {
 
 interface TestReceiver {
   server: Server;
+  baseUrl: string;
   url: string;
-  requests: Array<{ body: string; signature: string | undefined }>;
+  requests: Array<{ body: string; path: string; signature: string | undefined }>;
   setStatus(status: number): void;
 }
 
 async function createReceiver(): Promise<TestReceiver> {
-  const requests: Array<{ body: string; signature: string | undefined }> = [];
+  const requests: Array<{
+    body: string;
+    path: string;
+    signature: string | undefined;
+  }> = [];
   let responseStatus = 204;
   const server = createServer((request, response) => {
     const chunks: Buffer[] = [];
@@ -53,6 +59,7 @@ async function createReceiver(): Promise<TestReceiver> {
     request.on('end', () => {
       requests.push({
         body: Buffer.concat(chunks).toString('utf8'),
+        path: request.url ?? '/',
         signature: request.headers['x-chronicle-signature'] as string | undefined,
       });
       response.statusCode = responseStatus;
@@ -62,9 +69,11 @@ async function createReceiver(): Promise<TestReceiver> {
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
   if (!address || typeof address === 'string') throw new Error('Receiver did not bind.');
+  const baseUrl = `http://127.0.0.1:${address.port}`;
   return {
     server,
-    url: `http://127.0.0.1:${address.port}/reminders`,
+    baseUrl,
+    url: `${baseUrl}/reminders`,
     requests,
     setStatus: (status) => {
       responseStatus = status;
@@ -147,6 +156,67 @@ describe.skipIf(!database)('reminder worker', () => {
       select status from reminder_occurrences where reminder_id = ${reminder.id}
     `);
     expect(occurrence?.status).toBe('completed');
+  });
+
+  it('decrypts a Bark channel and posts a reminder to its push endpoint', async () => {
+    if (!database) throw new Error('TEST_DATABASE_URL is required.');
+    const now = new Date('2026-08-06T01:00:00.000Z');
+    const channelId = randomUUID();
+    const masterKey = 'worker-bark-test-master-key-with-32-characters';
+    const encrypted = encryptSecret(
+      {
+        serverUrl: receiver.baseUrl,
+        deviceKey: 'ios-device-key',
+        group: '物纪',
+        sound: 'minuet',
+      },
+      masterKey,
+      'notification-channel:' + channelId,
+    );
+    await database.db.insert(notificationChannels).values({
+      id: channelId,
+      provider: 'bark',
+      name: 'iPhone Bark',
+      enabled: true,
+      isDefault: true,
+      configurationCiphertext: encrypted.ciphertext,
+      configurationIv: encrypted.iv,
+      configurationTag: encrypted.tag,
+    });
+    await database.db.insert(reminders).values({
+      kind: 'renewal',
+      title: 'iCloud+ 续期',
+      triggerMode: 'datetime',
+      anchorDate: '2026-08-06',
+      anchorTime: '09:00',
+      anchorAt: now,
+      timeZone: 'Asia/Shanghai',
+      recurrenceKind: 'once',
+      leadMinutes: [0],
+      taskMode: 'notification',
+      repeatIntervalMinutes: 1_440,
+      maxRepeats: 0,
+      channelMode: 'default',
+      channelKeys: [],
+      nextSequence: 0,
+      nextOccurrenceAt: now,
+    });
+
+    const result = await runReminderCycle(
+      database.db,
+      { ...testConfig, APP_MASTER_KEY: masterKey },
+      now,
+    );
+
+    expect(result).toMatchObject({ queuedDeliveries: 1, sentDeliveries: 1 });
+    expect(receiver.requests).toHaveLength(1);
+    expect(receiver.requests[0]?.path).toBe('/push');
+    expect(JSON.parse(receiver.requests[0]?.body ?? '{}')).toMatchObject({
+      device_key: 'ios-device-key',
+      title: 'iCloud+ 续期',
+      group: '物纪',
+      sound: 'minuet',
+    });
   });
 
   it('retries transient provider failures with a bounded attempt count', async () => {

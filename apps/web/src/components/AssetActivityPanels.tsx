@@ -1,10 +1,12 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { ArrowDownToLine, HeartPulse, PackageCheck, Send, Sparkles } from 'lucide-react';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, type ReactNode, useState } from 'react';
 
 import type { AssetDetail, CreateRepairInput, DefectType } from '@thingcost/contracts';
+import { cn } from '@thingcost/ui';
 
 import { api } from '../lib/api.js';
+import { supportedCurrencies, useBaseCurrency } from '../lib/application-settings.js';
 import {
   conditionGradeLabel,
   defectTypeLabel,
@@ -12,7 +14,10 @@ import {
   localToday,
   majorToMinor,
 } from '../lib/format.js';
+import { markFresh } from '../lib/fresh-marks.js';
 import { queryKeys } from '../lib/query-keys.js';
+import { Button } from './ui/button.js';
+import { FormError, FormField, SelectInput, TextArea, TextInput } from './ui/form.js';
 
 interface ActivityProps {
   asset: AssetDetail;
@@ -21,7 +26,67 @@ interface ActivityProps {
 
 const heldReturnStatusCodes = ['in_use', 'idle', 'retired'] as const;
 
+/* 可折叠的工作流表单：默认收起，一次只展开要记的那一件事。
+ * 用原生 details/summary，键盘和读屏免费拿到展开语义。 */
+function WorkflowForm({
+  icon,
+  title,
+  children,
+  onSubmit,
+}: {
+  icon: ReactNode;
+  title: string;
+  children: ReactNode;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <details className="border border-border bg-card [&_summary::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-medium">
+        <span className="text-muted-foreground">{icon}</span>
+        {title}
+      </summary>
+      <form
+        className="flex flex-col gap-3 border-t border-border px-4 py-4"
+        onSubmit={onSubmit}
+      >
+        {children}
+      </form>
+    </details>
+  );
+}
+
+/* 进行中的借出/维修：不折叠，直接摊开等着被结掉。 */
+function OpenWorkflow({
+  icon,
+  title,
+  detail,
+  children,
+  onSubmit,
+}: {
+  icon: ReactNode;
+  title: string;
+  detail: ReactNode;
+  children: ReactNode;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <form data-slot="card" className="flex flex-col gap-3 p-4" onSubmit={onSubmit}>
+      <div className="flex items-center gap-3 border-b border-dashed border-border pb-3">
+        <span className="shrink-0 text-warning">{icon}</span>
+        <span className="min-w-0">
+          <strong className="block truncate text-sm font-medium text-heading">
+            {title}
+          </strong>
+          <span className="block truncate text-xs text-muted-foreground">{detail}</span>
+        </span>
+      </div>
+      {children}
+    </form>
+  );
+}
+
 export function AssetActivityForms({ asset, onUpdated }: ActivityProps) {
+  const baseCurrency = useBaseCurrency();
   const statusesQuery = useQuery({ queryKey: queryKeys.statuses, queryFn: api.statuses });
   const defaultReturnStatus =
     statusesQuery.data?.find((status) => status.code === 'in_use')?.id ?? '';
@@ -42,7 +107,7 @@ export function AssetActivityForms({ asset, onUpdated }: ActivityProps) {
   const [repairProvider, setRepairProvider] = useState('');
   const [repairDate, setRepairDate] = useState(localToday());
   const [repairCost, setRepairCost] = useState('');
-  const [repairCurrency, setRepairCurrency] = useState('CNY');
+  const [repairCurrency, setRepairCurrency] = useState(baseCurrency);
   const [repairExchangeRate, setRepairExchangeRate] = useState('1');
   const [repairExchangeRateSource, setRepairExchangeRateSource] = useState<
     'manual' | 'frankfurter'
@@ -56,6 +121,7 @@ export function AssetActivityForms({ asset, onUpdated }: ActivityProps) {
 
   const afterMutation = async () => {
     setLocalError(null);
+    markFresh(asset.id);
     await onUpdated();
   };
   const conditionMutation = useMutation({
@@ -80,7 +146,6 @@ export function AssetActivityForms({ asset, onUpdated }: ActivityProps) {
     },
     onSuccess: afterMutation,
   });
-  const baseCurrency = asset.financialEvents[0]?.baseCurrency ?? 'CNY';
   const quoteRepairExchangeRate = useMutation({
     mutationFn: () => api.exchangeRateQuote(repairCurrency, baseCurrency, repairDate),
     onSuccess: (quote) => {
@@ -169,147 +234,126 @@ export function AssetActivityForms({ asset, onUpdated }: ActivityProps) {
   };
 
   return (
-    <div className="activity-form-stack">
-      <details className="form-card compact-form workflow-form">
-        <summary>
-          <span>
-            <Sparkles size={17} /> 更新成色
-          </span>
-        </summary>
-        <form onSubmit={submitCondition}>
-          <label>
-            成色等级
-            <select
-              value={conditionGrade}
-              onChange={(event) =>
-                setConditionGrade(event.target.value as typeof conditionGrade)
-              }
-            >
-              <option value="new">全新</option>
-              <option value="like_new">近新</option>
-              <option value="good">良好</option>
-              <option value="fair">一般</option>
-              <option value="poor">较差</option>
-            </select>
-          </label>
-          <label>
-            观察日期
-            <input
+    <div className="flex flex-col gap-3">
+      <WorkflowForm
+        icon={<Sparkles aria-hidden="true" className="size-[17px]" />}
+        title="更新成色"
+        onSubmit={submitCondition}
+      >
+        <FormField label="成色等级">
+          <SelectInput
+            value={conditionGrade}
+            onChange={(event) =>
+              setConditionGrade(event.target.value as typeof conditionGrade)
+            }
+          >
+            <option value="new">全新</option>
+            <option value="like_new">近新</option>
+            <option value="good">良好</option>
+            <option value="fair">一般</option>
+            <option value="poor">较差</option>
+          </SelectInput>
+        </FormField>
+        <FormField label="观察日期">
+          <TextInput
+            type="date"
+            min={asset.acquisitionDate}
+            max={localToday()}
+            value={conditionDate}
+            onChange={(event) => setConditionDate(event.target.value)}
+          />
+        </FormField>
+        <FormField label="缺陷类型（可选）">
+          <SelectInput
+            value={defectType}
+            onChange={(event) => setDefectType(event.target.value as DefectType)}
+          >
+            <option value="scratch">划痕</option>
+            <option value="dent">凹陷</option>
+            <option value="crack">裂纹</option>
+            <option value="missing_part">缺件</option>
+            <option value="functional_issue">功能异常</option>
+            <option value="stain">污渍</option>
+            <option value="wear">磨损</option>
+            <option value="repair_history">维修痕迹</option>
+            <option value="other">其他</option>
+          </SelectInput>
+        </FormField>
+        <FormField label="缺陷描述">
+          <TextInput
+            value={defectDescription}
+            onChange={(event) => setDefectDescription(event.target.value)}
+            placeholder="未发现缺陷时留空"
+          />
+        </FormField>
+        <FormField label="备注">
+          <TextArea
+            rows={2}
+            value={conditionNote}
+            onChange={(event) => setConditionNote(event.target.value)}
+          />
+        </FormField>
+        <Button className="w-full" disabled={conditionMutation.isPending}>
+          保存成色记录
+        </Button>
+      </WorkflowForm>
+
+      {!currentDisposed && !openLoan && !openRepair ? (
+        <WorkflowForm
+          icon={<Send aria-hidden="true" className="size-[17px]" />}
+          title="记录借出"
+          onSubmit={(event) => {
+            event.preventDefault();
+            loanMutation.mutate({
+              borrower,
+              lentOn,
+              ...(dueOn ? { dueOn } : {}),
+              ...(loanNote.trim() ? { note: loanNote.trim() } : {}),
+            });
+          }}
+        >
+          <FormField label="借用人">
+            <TextInput
+              value={borrower}
+              onChange={(event) => setBorrower(event.target.value)}
+              required
+            />
+          </FormField>
+          <FormField label="借出日期">
+            <TextInput
               type="date"
               min={asset.acquisitionDate}
               max={localToday()}
-              value={conditionDate}
-              onChange={(event) => setConditionDate(event.target.value)}
+              value={lentOn}
+              onChange={(event) => setLentOn(event.target.value)}
             />
-          </label>
-          <label>
-            缺陷类型（可选）
-            <select
-              value={defectType}
-              onChange={(event) => setDefectType(event.target.value as DefectType)}
-            >
-              <option value="scratch">划痕</option>
-              <option value="dent">凹陷</option>
-              <option value="crack">裂纹</option>
-              <option value="missing_part">缺件</option>
-              <option value="functional_issue">功能异常</option>
-              <option value="stain">污渍</option>
-              <option value="wear">磨损</option>
-              <option value="repair_history">维修痕迹</option>
-              <option value="other">其他</option>
-            </select>
-          </label>
-          <label>
-            缺陷描述
-            <input
-              value={defectDescription}
-              onChange={(event) => setDefectDescription(event.target.value)}
-              placeholder="未发现缺陷时留空"
+          </FormField>
+          <FormField label="预计归还">
+            <TextInput
+              type="date"
+              min={lentOn}
+              value={dueOn}
+              onChange={(event) => setDueOn(event.target.value)}
             />
-          </label>
-          <label>
-            备注
-            <textarea
+          </FormField>
+          <FormField label="备注">
+            <TextArea
               rows={2}
-              value={conditionNote}
-              onChange={(event) => setConditionNote(event.target.value)}
+              value={loanNote}
+              onChange={(event) => setLoanNote(event.target.value)}
             />
-          </label>
-          <button
-            className="primary-action primary-action-wide"
-            disabled={conditionMutation.isPending}
-          >
-            保存成色记录
-          </button>
-        </form>
-      </details>
+          </FormField>
+          <Button className="w-full" disabled={loanMutation.isPending}>
+            确认借出
+          </Button>
+        </WorkflowForm>
+      ) : null}
 
-      {!currentDisposed && !openLoan && !openRepair && (
-        <details className="form-card compact-form workflow-form">
-          <summary>
-            <span>
-              <Send size={17} /> 记录借出
-            </span>
-          </summary>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              loanMutation.mutate({
-                borrower,
-                lentOn,
-                ...(dueOn ? { dueOn } : {}),
-                ...(loanNote.trim() ? { note: loanNote.trim() } : {}),
-              });
-            }}
-          >
-            <label>
-              借用人
-              <input
-                value={borrower}
-                onChange={(event) => setBorrower(event.target.value)}
-                required
-              />
-            </label>
-            <label>
-              借出日期
-              <input
-                type="date"
-                min={asset.acquisitionDate}
-                max={localToday()}
-                value={lentOn}
-                onChange={(event) => setLentOn(event.target.value)}
-              />
-            </label>
-            <label>
-              预计归还
-              <input
-                type="date"
-                min={lentOn}
-                value={dueOn}
-                onChange={(event) => setDueOn(event.target.value)}
-              />
-            </label>
-            <label>
-              备注
-              <textarea
-                rows={2}
-                value={loanNote}
-                onChange={(event) => setLoanNote(event.target.value)}
-              />
-            </label>
-            <button
-              className="primary-action primary-action-wide"
-              disabled={loanMutation.isPending}
-            >
-              确认借出
-            </button>
-          </form>
-        </details>
-      )}
-
-      {openLoan && (
-        <form
-          className="form-card compact-form workflow-form"
+      {openLoan ? (
+        <OpenWorkflow
+          icon={<ArrowDownToLine aria-hidden="true" className="size-[17px]" />}
+          title={`借给 ${openLoan.borrower}`}
+          detail={openLoan.dueOn ? `预计 ${openLoan.dueOn} 归还` : '未设置预计归还日'}
           onSubmit={(event) => {
             event.preventDefault();
             const statusId = loanReturnStatus || defaultReturnStatus;
@@ -320,28 +364,17 @@ export function AssetActivityForms({ asset, onUpdated }: ActivityProps) {
             returnLoanMutation.mutate({ returnedOn: loanReturnDate, statusId });
           }}
         >
-          <div className="workflow-banner">
-            <ArrowDownToLine size={17} />
-            <div>
-              <strong>借给 {openLoan.borrower}</strong>
-              <small>
-                {openLoan.dueOn ? `预计 ${openLoan.dueOn} 归还` : '未设置预计归还日'}
-              </small>
-            </div>
-          </div>
-          <label>
-            归还日期
-            <input
+          <FormField label="归还日期">
+            <TextInput
               type="date"
               min={openLoan.lentOn}
               max={localToday()}
               value={loanReturnDate}
               onChange={(event) => setLoanReturnDate(event.target.value)}
             />
-          </label>
-          <label>
-            归还后状态
-            <select
+          </FormField>
+          <FormField label="归还后状态">
+            <SelectInput
               value={loanReturnStatus || defaultReturnStatus}
               onChange={(event) => setLoanReturnStatus(event.target.value)}
             >
@@ -350,126 +383,113 @@ export function AssetActivityForms({ asset, onUpdated }: ActivityProps) {
                   {status.name}
                 </option>
               ))}
-            </select>
-          </label>
-          <button
-            className="primary-action primary-action-wide"
-            disabled={returnLoanMutation.isPending}
-          >
+            </SelectInput>
+          </FormField>
+          <Button className="w-full" disabled={returnLoanMutation.isPending}>
             确认归还
-          </button>
-        </form>
-      )}
+          </Button>
+        </OpenWorkflow>
+      ) : null}
 
-      {!currentDisposed && !openLoan && !openRepair && (
-        <details className="form-card compact-form workflow-form">
-          <summary>
-            <span>
-              <HeartPulse size={17} /> 记录维修
-            </span>
-          </summary>
-          <form onSubmit={submitRepair}>
-            <label>
-              故障 / 维修内容
-              <input
-                value={repairIssue}
-                onChange={(event) => setRepairIssue(event.target.value)}
-                required
-              />
-            </label>
-            <label>
-              维修方
-              <input
-                value={repairProvider}
-                onChange={(event) => setRepairProvider(event.target.value)}
-              />
-            </label>
-            <label>
-              送修日期
-              <input
-                type="date"
-                min={asset.acquisitionDate}
-                max={localToday()}
-                value={repairDate}
-                onChange={(event) => setRepairDate(event.target.value)}
-              />
-            </label>
-            <label>
-              费用币种
-              <select
-                value={repairCurrency}
-                onChange={(event) => {
-                  setRepairCurrency(event.target.value);
-                  setRepairExchangeRate(event.target.value === baseCurrency ? '1' : '');
-                  setRepairExchangeRateSource('manual');
-                  setRepairExchangeRateFallback(false);
-                }}
-              >
-                {[baseCurrency, 'CNY', 'USD', 'EUR', 'JPY', 'HKD']
-                  .filter((currency, index, all) => all.indexOf(currency) === index)
-                  .map((currency) => (
-                    <option key={currency} value={currency}>
-                      {currency}
-                    </option>
-                  ))}
-              </select>
-            </label>
-            <label>
-              维修费用（可选）
-              <input
-                inputMode="decimal"
-                value={repairCost}
-                onChange={(event) => setRepairCost(event.target.value)}
-                placeholder="0.00"
-              />
-            </label>
-            {repairCurrency !== baseCurrency && (
-              <>
-                <label>
-                  锁定汇率（1 {repairCurrency} = ? {baseCurrency}）
-                  <input
-                    required={Boolean(repairCost)}
-                    inputMode="decimal"
-                    value={repairExchangeRate}
-                    onChange={(event) => {
-                      setRepairExchangeRate(event.target.value);
-                      setRepairExchangeRateSource('manual');
-                      setRepairExchangeRateDate(repairDate);
-                      setRepairExchangeRateFallback(false);
-                    }}
-                  />
-                </label>
-                <button
-                  className="secondary-action"
-                  disabled={quoteRepairExchangeRate.isPending}
-                  type="button"
-                  onClick={() => quoteRepairExchangeRate.mutate()}
-                >
-                  {quoteRepairExchangeRate.isPending ? '查询中…' : '参考历史汇率'}
-                </button>
-              </>
-            )}
-            <label>
-              备注
-              <textarea
-                rows={2}
-                value={repairNote}
-                onChange={(event) => setRepairNote(event.target.value)}
-              />
-            </label>
-            <button
-              className="primary-action primary-action-wide"
-              disabled={repairMutation.isPending}
+      {!currentDisposed && !openLoan && !openRepair ? (
+        <WorkflowForm
+          icon={<HeartPulse aria-hidden="true" className="size-[17px]" />}
+          title="记录维修"
+          onSubmit={submitRepair}
+        >
+          <FormField label="故障 / 维修内容">
+            <TextInput
+              value={repairIssue}
+              onChange={(event) => setRepairIssue(event.target.value)}
+              required
+            />
+          </FormField>
+          <FormField label="维修方">
+            <TextInput
+              value={repairProvider}
+              onChange={(event) => setRepairProvider(event.target.value)}
+            />
+          </FormField>
+          <FormField label="送修日期">
+            <TextInput
+              type="date"
+              min={asset.acquisitionDate}
+              max={localToday()}
+              value={repairDate}
+              onChange={(event) => setRepairDate(event.target.value)}
+            />
+          </FormField>
+          <FormField label="费用币种">
+            <SelectInput
+              value={repairCurrency}
+              onChange={(event) => {
+                setRepairCurrency(event.target.value);
+                setRepairExchangeRate(event.target.value === baseCurrency ? '1' : '');
+                setRepairExchangeRateSource('manual');
+                setRepairExchangeRateFallback(false);
+              }}
             >
-              开始维修
-            </button>
-          </form>
-        </details>
-      )}
+              {[baseCurrency, ...supportedCurrencies]
+                .filter((currency, index, all) => all.indexOf(currency) === index)
+                .map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+            </SelectInput>
+          </FormField>
+          <FormField label="维修费用（可选）">
+            <TextInput
+              inputMode="decimal"
+              value={repairCost}
+              onChange={(event) => setRepairCost(event.target.value)}
+              placeholder="0.00"
+            />
+          </FormField>
+          {repairCurrency !== baseCurrency ? (
+            <>
+              <FormField label={`锁定汇率（1 ${repairCurrency} = ? ${baseCurrency}）`}>
+                <TextInput
+                  required={Boolean(repairCost)}
+                  inputMode="decimal"
+                  value={repairExchangeRate}
+                  onChange={(event) => {
+                    setRepairExchangeRate(event.target.value);
+                    setRepairExchangeRateSource('manual');
+                    setRepairExchangeRateDate(repairDate);
+                    setRepairExchangeRateFallback(false);
+                  }}
+                />
+              </FormField>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={quoteRepairExchangeRate.isPending}
+                type="button"
+                onClick={() => quoteRepairExchangeRate.mutate()}
+              >
+                {quoteRepairExchangeRate.isPending ? '查询中…' : '参考历史汇率'}
+              </Button>
+            </>
+          ) : null}
+          <FormField label="备注">
+            <TextArea
+              rows={2}
+              value={repairNote}
+              onChange={(event) => setRepairNote(event.target.value)}
+            />
+          </FormField>
+          <Button className="w-full" disabled={repairMutation.isPending}>
+            开始维修
+          </Button>
+        </WorkflowForm>
+      ) : null}
 
-      {openRepair && (
-        <form
-          className="form-card compact-form workflow-form"
+      {openRepair ? (
+        <OpenWorkflow
+          icon={<PackageCheck aria-hidden="true" className="size-[17px]" />}
+          title={openRepair.issue}
+          detail={openRepair.provider ?? '未记录维修方'}
           onSubmit={(event) => {
             event.preventDefault();
             const statusId = repairReturnStatus || defaultReturnStatus;
@@ -477,29 +497,23 @@ export function AssetActivityForms({ asset, onUpdated }: ActivityProps) {
               setLocalError('完成状态尚未加载');
               return;
             }
-            completeRepairMutation.mutate({ completedOn: repairReturnDate, statusId });
+            completeRepairMutation.mutate({
+              completedOn: repairReturnDate,
+              statusId,
+            });
           }}
         >
-          <div className="workflow-banner">
-            <PackageCheck size={17} />
-            <div>
-              <strong>{openRepair.issue}</strong>
-              <small>{openRepair.provider ?? '未记录维修方'}</small>
-            </div>
-          </div>
-          <label>
-            取回日期
-            <input
+          <FormField label="取回日期">
+            <TextInput
               type="date"
               min={openRepair.sentOn}
               max={localToday()}
               value={repairReturnDate}
               onChange={(event) => setRepairReturnDate(event.target.value)}
             />
-          </label>
-          <label>
-            完成后状态
-            <select
+          </FormField>
+          <FormField label="完成后状态">
+            <SelectInput
               value={repairReturnStatus || defaultReturnStatus}
               onChange={(event) => setRepairReturnStatus(event.target.value)}
             >
@@ -508,101 +522,137 @@ export function AssetActivityForms({ asset, onUpdated }: ActivityProps) {
                   {status.name}
                 </option>
               ))}
-            </select>
-          </label>
-          <button
-            className="primary-action primary-action-wide"
-            disabled={completeRepairMutation.isPending}
-          >
+            </SelectInput>
+          </FormField>
+          <Button className="w-full" disabled={completeRepairMutation.isPending}>
             完成维修
-          </button>
-        </form>
-      )}
+          </Button>
+        </OpenWorkflow>
+      ) : null}
 
-      {error && (
-        <p className="form-error" role="alert">
-          {error}
-        </p>
-      )}
+      <FormError>{error}</FormError>
     </div>
+  );
+}
+
+/* 历史记录的一条：左边一枚状态签，右边内容。 */
+function HistoryRow({
+  chip,
+  chipTone,
+  title,
+  children,
+}: {
+  chip: string;
+  chipTone: 'open' | 'done' | 'neutral';
+  title: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <li className="flex gap-3 border-b border-dashed border-border py-2.5 last:border-0">
+      <span
+        className={cn(
+          'shrink-0 border px-1.5 py-0.5 text-[11px] leading-tight',
+          chipTone === 'open' && 'border-warning/40 bg-warning-subtle text-warning',
+          chipTone === 'done' && 'border-success/40 bg-success-subtle text-success',
+          chipTone === 'neutral' && 'border-border text-muted-foreground',
+        )}
+      >
+        {chip}
+      </span>
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <strong className="block truncate text-sm font-medium text-heading">
+          {title}
+        </strong>
+        {children}
+      </div>
+    </li>
+  );
+}
+
+function HistorySection({
+  title,
+  empty,
+  children,
+}: {
+  title: string;
+  empty: string;
+  children: ReactNode;
+}) {
+  const hasRows = Array.isArray(children) ? children.length > 0 : Boolean(children);
+  return (
+    <section data-slot="card" className="flex flex-col gap-2 p-4">
+      <h4 data-slot="ledger-label">{title}</h4>
+      {hasRows ? (
+        <ol className="flex flex-col">{children}</ol>
+      ) : (
+        <p className="py-2 text-sm text-muted-foreground">{empty}</p>
+      )}
+    </section>
   );
 }
 
 export function AssetActivityHistory({ asset }: { asset: AssetDetail }) {
   return (
-    <div className="asset-activity-history">
-      <section>
-        <h3>成色历史</h3>
-        {asset.conditionEvents.length === 0 ? (
-          <p className="muted-copy">尚未记录成色。</p>
-        ) : (
-          asset.conditionEvents.map((event) => (
-            <article key={event.id}>
-              <span className="history-grade">{conditionGradeLabel(event.grade)}</span>
-              <div>
-                <strong>{event.observedOn}</strong>
-                {event.defects.map((defect) => (
-                  <p key={defect.id}>
-                    {defectTypeLabel(defect.type)} · {defect.description}
-                  </p>
-                ))}
-                {event.note && <small>{event.note}</small>}
-              </div>
-            </article>
-          ))
-        )}
-      </section>
-      <section>
-        <h3>借出历史</h3>
-        {asset.loans.length === 0 ? (
-          <p className="muted-copy">尚无借出记录。</p>
-        ) : (
-          asset.loans.map((loan) => (
-            <article key={loan.id}>
-              <span className={loan.returnedOn ? 'history-done' : 'history-open'}>
-                {loan.returnedOn ? '已还' : '借出'}
-              </span>
-              <div>
-                <strong>{loan.borrower}</strong>
-                <p>
-                  {loan.lentOn} → {loan.returnedOn ?? loan.dueOn ?? '待归还'}
-                </p>
-                {loan.note && <small>{loan.note}</small>}
-              </div>
-            </article>
-          ))
-        )}
-      </section>
-      <section>
-        <h3>维修历史</h3>
-        {asset.repairs.length === 0 ? (
-          <p className="muted-copy">尚无维修记录。</p>
-        ) : (
-          asset.repairs.map((repair) => (
-            <article key={repair.id}>
-              <span className={repair.completedOn ? 'history-done' : 'history-open'}>
-                {repair.completedOn ? '完成' : '维修'}
-              </span>
-              <div>
-                <strong>{repair.issue}</strong>
-                <p>
-                  {repair.sentOn} → {repair.completedOn ?? '进行中'}
-                  {repair.provider ? ` · ${repair.provider}` : ''}
-                </p>
-                {repair.costAmountMinor && (
-                  <small>
-                    费用{' '}
-                    {formatMinorCurrency(
-                      repair.costAmountMinor,
-                      repair.currency ?? 'CNY',
-                    )}
-                  </small>
-                )}
-              </div>
-            </article>
-          ))
-        )}
-      </section>
+    <div className="grid gap-3 lg:grid-cols-3">
+      <HistorySection title="成色历史" empty="尚未记录成色。">
+        {asset.conditionEvents.map((event) => (
+          <HistoryRow
+            key={event.id}
+            chip={conditionGradeLabel(event.grade)}
+            chipTone="neutral"
+            title={event.observedOn}
+          >
+            {event.defects.map((defect) => (
+              <p className="text-xs text-muted-foreground" key={defect.id}>
+                {defectTypeLabel(defect.type)} · {defect.description}
+              </p>
+            ))}
+            {event.note ? (
+              <p className="text-xs text-muted-foreground">{event.note}</p>
+            ) : null}
+          </HistoryRow>
+        ))}
+      </HistorySection>
+
+      <HistorySection title="借出历史" empty="尚无借出记录。">
+        {asset.loans.map((loan) => (
+          <HistoryRow
+            key={loan.id}
+            chip={loan.returnedOn ? '已还' : '借出'}
+            chipTone={loan.returnedOn ? 'done' : 'open'}
+            title={loan.borrower}
+          >
+            <p data-slot="amount" className="text-xs text-muted-foreground">
+              {loan.lentOn} → {loan.returnedOn ?? loan.dueOn ?? '待归还'}
+            </p>
+            {loan.note ? (
+              <p className="text-xs text-muted-foreground">{loan.note}</p>
+            ) : null}
+          </HistoryRow>
+        ))}
+      </HistorySection>
+
+      <HistorySection title="维修历史" empty="尚无维修记录。">
+        {asset.repairs.map((repair) => (
+          <HistoryRow
+            key={repair.id}
+            chip={repair.completedOn ? '完成' : '维修'}
+            chipTone={repair.completedOn ? 'done' : 'open'}
+            title={repair.issue}
+          >
+            <p data-slot="amount" className="text-xs text-muted-foreground">
+              {repair.sentOn} → {repair.completedOn ?? '进行中'}
+              {repair.provider ? ` · ${repair.provider}` : ''}
+            </p>
+            {repair.costAmountMinor ? (
+              <p data-slot="amount" className="text-xs text-muted-foreground">
+                费用{' '}
+                {formatMinorCurrency(repair.costAmountMinor, repair.currency ?? 'CNY')}
+              </p>
+            ) : null}
+          </HistoryRow>
+        ))}
+      </HistorySection>
     </div>
   );
 }

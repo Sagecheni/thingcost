@@ -1,38 +1,35 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
+import { Archive, Plus } from 'lucide-react';
 import {
-  Archive,
-  ArrowDownRight,
-  ArrowUpRight,
-  Bell,
-  CalendarDays,
-  CircleDollarSign,
-  Clock3,
-  Layers3,
-  Plus,
-  WalletCards,
-} from 'lucide-react';
-import { lazy, Suspense, useMemo, useState, type ComponentType, type ReactNode } from 'react';
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 
 import { cn } from '@thingcost/ui';
 
 import { api } from '../lib/api.js';
-import { formatDailyMinorCurrency, formatMinorCurrency } from '../lib/format.js';
+import { formatMinorCurrency } from '../lib/format.js';
 import { queryKeys } from '../lib/query-keys.js';
 import { Button } from '../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.js';
 import { EmptyState } from '../components/ui/empty-state.js';
+import { FormError } from '../components/ui/form.js';
+import { ChartBoard, PanelGhost } from '../components/ui/ledger-skeleton.js';
 import { PageHeader } from '../components/ui/page-header.js';
 import { SegmentedControl } from '../components/ui/segmented-control.js';
+import { SealMark } from '../components/SealMark.js';
+import { TypeBlock } from '../components/TypeBlock.js';
+import { VaultRack } from '../components/VaultRack.js';
 
 const PortfolioTrendChart = lazy(() =>
   import('../components/DashboardCharts.js').then((module) => ({
     default: module.PortfolioTrendChart,
-  })),
-);
-const AssetMapChart = lazy(() =>
-  import('../components/DashboardCharts.js').then((module) => ({
-    default: module.AssetMapChart,
   })),
 );
 
@@ -51,14 +48,20 @@ const periodOptions = [
 ] as const;
 
 const trendMetricLabels: Record<TrendMetric, string> = {
-  netInvestment: '净投入变化',
-  holdingDailyCost: '日均持有',
-  serviceDailyCost: '日均服役',
+  netInvestment: '净投入变化 · 阶梯的每一级是一次取得',
+  holdingDailyCost: '日均持有成本',
+  serviceDailyCost: '日均服役成本',
 };
 
 function absoluteMinor(value: string): string {
   const amount = BigInt(value);
   return (amount < 0n ? -amount : amount).toString();
+}
+
+/* 日均票面：只出数字，单位"/ 天"由调用处单独排小一号。
+ * 缺值用破折号而不是"成本未知"—— 这里缺的是分母，不是金额。 */
+function dailyFace(amountMinor: string | null, currency: string): string {
+  return amountMinor === null ? '—' : formatMinorCurrency(amountMinor, currency, 2);
 }
 
 function categoryShare(value: string, total: bigint): number {
@@ -67,7 +70,7 @@ function categoryShare(value: string, total: bigint): number {
   return Number((amount * 1000n) / total) / 10;
 }
 
-/* 面板头：图标 + 标题 + 一行说明，右上角放操作 */
+/* 面板头：眉批 + 标题，右上角放操作 */
 function PanelHeading({
   title,
   hint,
@@ -90,37 +93,39 @@ function PanelHeading({
   );
 }
 
-/* 单个成本指标一张卡。dl 的直接子元素允许是 div，Card 渲染的正是 div，
- * 所以拆成卡片不会破坏 dt/dd 的语义配对。 */
-function MetricCard({
-  icon: Icon,
+/* 副读数：票面小一号，口径写在下面。 */
+function ReadingSheet({
   label,
   value,
+  unit,
   note,
   isGain,
 }: {
-  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
-  label: ReactNode;
+  label: string;
   value: string;
+  unit?: string;
   note: ReactNode;
   isGain: boolean;
 }) {
   return (
     <Card>
-      <CardContent className="space-y-1 p-5">
-        <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Icon className="size-3.5" strokeWidth={1.8} />
-          {label}
-        </dt>
-        <dd
-          className={cn(
-            'tnum text-2xl font-semibold',
-            isGain ? 'text-success' : 'text-heading',
-          )}
-        >
-          {value}
+      <CardContent className="space-y-1.5 p-5">
+        <dt data-slot="ledger-label">{label}</dt>
+        <dd className="flex items-baseline gap-1">
+          <span
+            data-slot="amount"
+            className={cn(
+              'text-[26px] leading-none font-medium',
+              isGain ? 'text-success' : 'text-heading',
+            )}
+          >
+            {value}
+          </span>
+          {unit ? (
+            <span className="text-[11px] text-muted-foreground">{unit}</span>
+          ) : null}
         </dd>
-        <p className="tnum text-xs text-muted-foreground">{note}</p>
+        <p className="text-xs text-muted-foreground">{note}</p>
       </CardContent>
     </Card>
   );
@@ -129,14 +134,14 @@ function MetricCard({
 /* 排名序号：两位数字，等宽对齐 */
 function RankIndex({ index }: { index: number }) {
   return (
-    <span className="tnum w-6 shrink-0 text-xs text-muted-foreground">
+    <span data-slot="amount" className="w-6 shrink-0 text-xs text-muted-foreground">
       {String(index + 1).padStart(2, '0')}
     </span>
   );
 }
 
 const rankRow = cn(
-  'flex items-center gap-3 border-b border-border-soft py-2.5 last:border-0',
+  'flex items-center gap-3 border-b border-dashed border-border py-2.5 last:border-0',
   'transition-colors hover:bg-accent',
 );
 
@@ -146,6 +151,8 @@ export function DashboardPage() {
   const dashboardQuery = useQuery({
     queryKey: queryKeys.dashboard(periodDays),
     queryFn: () => api.dashboard(periodDays),
+    /* 周期切换时保留上一张账页，待新范围返回后让同一图表实例连续过渡。 */
+    placeholderData: keepPreviousData,
   });
 
   const dashboard = dashboardQuery.data;
@@ -158,17 +165,49 @@ export function DashboardPage() {
     [dashboard],
   );
 
+  /* 大数字落印：只有金额真正变化时才重新盖章 —— 淡入回满墨，不做滚动行情。 */
+  const [netInvestmentPrintKey, setNetInvestmentPrintKey] = useState(0);
+  const prevNetInvestmentMinor = useRef<string | null>(null);
+  useEffect(() => {
+    const value = dashboard?.currentNetInvestmentMinor;
+    if (value === undefined) return;
+    if (
+      prevNetInvestmentMinor.current !== null &&
+      prevNetInvestmentMinor.current !== value
+    ) {
+      setNetInvestmentPrintKey((key) => key + 1);
+    }
+    prevNetInvestmentMinor.current = value;
+  }, [dashboard?.currentNetInvestmentMinor]);
+
   if (dashboardQuery.isPending) {
     return (
-      <p className="py-16 text-center text-sm text-muted-foreground">正在生成资产报表…</p>
+      <div aria-busy="true" className="mx-auto flex max-w-6xl flex-col gap-5">
+        {/* 总账页的骨架：一张总存根 + 三张副读数 + 两块图表格 */}
+        <PanelGhost lines={3} />
+        <div className="grid gap-5 sm:grid-cols-3">
+          <PanelGhost lines={2} />
+          <PanelGhost lines={2} />
+          <PanelGhost lines={2} />
+        </div>
+        <PanelGhost chart />
+        <PanelGhost lines={4} />
+      </div>
     );
   }
 
   if (dashboardQuery.isError) {
     return (
-      <p className="rounded-md border border-destructive/30 bg-destructive-subtle px-4 py-3 text-sm text-destructive">
-        {dashboardQuery.error.message}
-      </p>
+      <div className="mx-auto flex max-w-xl flex-col items-stretch gap-3 pt-8">
+        <FormError>{dashboardQuery.error.message}</FormError>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => void dashboardQuery.refetch()}
+        >
+          重新读取
+        </Button>
+      </div>
     );
   }
 
@@ -181,98 +220,104 @@ export function DashboardPage() {
   const holdingDailyIsGain = Number(dashboard.currentHoldingDailyCostMinor) < 0;
   const serviceDailyIsGain = Number(dashboard.currentDailyCostMinor) < 0;
   const periodIsNetInflow = BigInt(dashboard.periodNetSpendingMinor) < 0n;
-  const attentionCount =
-    dashboard.idleCount +
-    dashboard.loanedCount +
-    dashboard.repairCount +
-    dashboard.retiredCount;
-  const statusItems = [
-    { label: '服役', value: dashboard.serviceItemCount },
-    { label: '闲置', value: dashboard.idleCount },
-    { label: '借出', value: dashboard.loanedCount },
-    { label: '维修', value: dashboard.repairCount },
-    { label: '退役持有', value: dashboard.retiredCount },
-  ];
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-5">
       <PageHeader
-        eyebrow="个人资产报表"
+        eyebrow="个人资产总账"
         title="资产总览"
         actions={
-          <>
-            <time
-              className="tnum text-xs text-muted-foreground"
-              dateTime={dashboard.asOfDate}
-            >
-              截至 {dashboard.asOfDate}
-            </time>
-            <Button asChild>
-              <Link to="/assets/new">
-                <Plus aria-hidden="true" />
-                添加物品
-              </Link>
-            </Button>
-          </>
+          <Button asChild>
+            <Link to="/assets/new">
+              <Plus aria-hidden="true" />
+              添加物品
+            </Link>
+          </Button>
         }
       />
 
-      {/* 主读数 */}
+      {/* 主读数：整页唯一的大票面 —— 一张总存根。
+       * 头联写眉批和盖章日期，票面是大数字和口径，骑缝之下是存根脚：
+       * 持有与服役只报数量，不把未知成本混进任何合计。 */}
       <Card aria-labelledby="asset-overview-title">
-        <CardContent className="space-y-1.5 p-5 sm:p-6">
-          <p className="flex items-center gap-2 text-xs text-muted-foreground">
-            <WalletCards aria-hidden="true" className="size-4" strokeWidth={1.8} />
-            <span id="asset-overview-title">持有资产净投入</span>
+        <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-border px-5 pt-4 pb-2.5 sm:px-6">
+          <p data-slot="ledger-label" id="asset-overview-title">
+            持有资产净投入
           </p>
-          <strong
-            className={cn(
-              'tnum block text-4xl leading-tight font-semibold sm:text-5xl',
-              netInvestmentIsGain ? 'text-success' : 'text-heading',
-            )}
-          >
-            {formatMinorCurrency(dashboard.currentNetInvestmentMinor, currency)}
-          </strong>
+          <time data-slot="ledger-label" dateTime={dashboard.asOfDate}>
+            截至 {dashboard.asOfDate}
+          </time>
+        </div>
+        <CardContent className="space-y-2 p-5 sm:p-6">
+          <div className="flex items-end justify-between gap-3">
+            <strong
+              key={netInvestmentPrintKey}
+              data-slot="amount"
+              className={cn(
+                'block text-[44px] leading-none font-medium sm:text-[56px]',
+                netInvestmentPrintKey > 0 && 'ledger-print',
+                netInvestmentIsGain ? 'text-success' : 'text-heading',
+              )}
+            >
+              {formatMinorCurrency(dashboard.currentNetInvestmentMinor, currency)}
+            </strong>
+            {/* 总存根也凭印 —— 数额更新时，印章和大数字一起回落 */}
+            <SealMark
+              key={netInvestmentPrintKey}
+              stamped={netInvestmentPrintKey > 0}
+              className="mb-1 shrink-0"
+            />
+          </div>
           <p className="text-sm text-muted-foreground">
-            当前持有 {dashboard.heldItemCount} 件 · 其中服役 {dashboard.serviceItemCount}{' '}
-            件
+            按实际现金流计：取得、维修等加计，卖出回款与退款冲减。
           </p>
           {dashboard.unknownCostCount > 0 && (
-            /* 未知成本从不并进总额，只在这里显式提示 */
+            /* 藤黄待办 —— 欠了一步的账划在左边，不判错。
+             * 未知成本从不并进上面那个总额。 */
             <Link
-              className={cn(
-                'mt-1 inline-flex items-center gap-1 rounded-full border border-warning/25',
-                'bg-warning-subtle px-3 py-1 text-xs text-warning hover:underline',
-              )}
+              className="mt-1 inline-block text-[13px] font-semibold hover:underline"
+              data-slot="pending"
               to="/assets"
               search={{ costKnowledge: 'unknown' }}
             >
-              {dashboard.unknownCostCount} 件物品尚未记录成本
+              {dashboard.unknownCostCount} 件物品尚未记录成本，未计入总额
             </Link>
           )}
         </CardContent>
+        <div data-slot="perforation" aria-hidden="true" className="mt-2" />
+        <dl className="flex justify-between gap-3 px-5 pt-3 pb-4 sm:px-6">
+          <div className="flex gap-1.5">
+            <dt className="text-xs text-muted-foreground">当前持有</dt>
+            <dd data-slot="amount" className="text-sm text-heading">
+              {dashboard.heldItemCount} 件
+            </dd>
+          </div>
+          <div className="flex gap-1.5">
+            <dt className="text-xs text-muted-foreground">其中服役</dt>
+            <dd data-slot="amount" className="text-sm text-heading">
+              {dashboard.serviceItemCount} 件
+            </dd>
+          </div>
+        </dl>
       </Card>
 
-      {/* 三个成本指标，各自一张卡 */}
+      {/* 三个成本口径，各自一张 */}
       <dl className="grid gap-5 sm:grid-cols-3">
-        <MetricCard
-          icon={Clock3}
+        <ReadingSheet
           label="日均持有成本"
-          value={formatDailyMinorCurrency(
-            dashboard.currentHoldingDailyCostMinor,
-            currency,
-          )}
+          value={formatMinorCurrency(dashboard.currentHoldingDailyCostMinor, currency, 2)}
+          unit="/ 天"
           note="包含闲置、借出与退役持有"
           isGain={holdingDailyIsGain}
         />
-        <MetricCard
-          icon={CircleDollarSign}
+        <ReadingSheet
           label="日均服役成本"
-          value={formatDailyMinorCurrency(dashboard.currentDailyCostMinor, currency)}
+          value={formatMinorCurrency(dashboard.currentDailyCostMinor, currency, 2)}
+          unit="/ 天"
           note="按实际服役天数摊薄"
           isGain={serviceDailyIsGain}
         />
-        <MetricCard
-          icon={periodIsNetInflow ? ArrowDownRight : ArrowUpRight}
+        <ReadingSheet
           label={`近 ${String(dashboard.periodDays)} 天${periodIsNetInflow ? '净流入' : '净支出'}`}
           value={formatMinorCurrency(
             absoluteMinor(dashboard.periodNetSpendingMinor),
@@ -288,8 +333,8 @@ export function DashboardPage() {
         />
       </dl>
 
-      {/* 资产趋势 —— 先看时间变化，再看分类构成 */}
-      <Card aria-labelledby="trend-title">
+      {/* 资产趋势 */}
+      <Card aria-busy={dashboardQuery.isFetching} aria-labelledby="trend-title">
         <PanelHeading
           id="trend-title"
           title="资产趋势"
@@ -314,16 +359,26 @@ export function DashboardPage() {
         <CardContent>
           <figure className="m-0 space-y-2">
             {/* 单序列折线不需要图例，标题即图注 */}
-            <figcaption className="text-xs text-muted-foreground">
-              {trendMetricLabels[trendMetric]}
+            <figcaption className="flex min-h-4 flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>{trendMetricLabels[trendMetric]}</span>
+              <span
+                className="inline-flex min-w-14 items-center justify-end gap-1.5"
+                role="status"
+              >
+                {dashboardQuery.isFetching ? (
+                  <>
+                    {/* 正在重新落墨：一小段呼吸的账页行线，
+                     * 与骨架屏和图表格同一语言 */}
+                    <span
+                      aria-hidden="true"
+                      className="h-3 w-4 bg-[repeating-linear-gradient(0deg,transparent_0_3px,var(--primary)_3px_4px)] motion-safe:animate-pulse"
+                    />
+                    更新中
+                  </>
+                ) : null}
+              </span>
             </figcaption>
-            <Suspense
-              fallback={
-                <p className="py-12 text-center text-sm text-muted-foreground">
-                  正在绘制资产趋势…
-                </p>
-              }
-            >
+            <Suspense fallback={<ChartBoard />}>
               <PortfolioTrendChart
                 currency={dashboard.baseCurrency}
                 metric={trendMetric}
@@ -341,32 +396,26 @@ export function DashboardPage() {
           title="资产版图"
           hint="按当前持有物品的净投入"
           action={
-            <span className="tnum shrink-0 text-xs text-muted-foreground">
+            <span data-slot="amount" className="shrink-0 text-xs text-muted-foreground">
               {dashboard.categories.length} 个分类
             </span>
           }
         />
-        <CardContent>
+        <CardContent className="flex flex-col gap-6">
           {dashboard.categories.length === 0 ? (
             <EmptyState icon={Archive} title="添加物品后生成资产版图" />
           ) : (
-            <div className="grid gap-6 lg:grid-cols-2">
-              <figure className="m-0">
-                <Suspense
-                  fallback={
-                    <p className="py-12 text-center text-sm text-muted-foreground">
-                      正在绘制资产版图…
-                    </p>
-                  }
-                >
-                  <AssetMapChart
-                    categories={dashboard.categories}
-                    currency={dashboard.baseCurrency}
-                  />
-                </Suspense>
-              </figure>
+            <>
+              {/* 库房货架满宽顶格，底册排行在下方承接读数 */}
+              <VaultRack
+                categories={dashboard.categories}
+                currency={dashboard.baseCurrency}
+              />
 
-              <div className="flex flex-col gap-3" aria-label="分类净投入排行">
+              <div
+                className="grid gap-4 gap-x-8 sm:grid-cols-2"
+                aria-label="分类净投入排行"
+              >
                 {dashboard.categories.map((category, index) => {
                   const share = categoryShare(
                     category.netCostMinor,
@@ -376,23 +425,28 @@ export function DashboardPage() {
                     <div className="space-y-1.5" key={category.categoryId}>
                       <div className="flex items-baseline gap-2">
                         <RankIndex index={index} />
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                          {category.name}
+                        <span className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-medium">
+                          <TypeBlock name={category.name} />
+                          <span className="truncate">{category.name}</span>
                         </span>
-                        <span className="tnum shrink-0 text-xs text-muted-foreground">
+                        <span
+                          data-slot="amount"
+                          className="shrink-0 text-xs text-muted-foreground"
+                        >
                           {category.itemCount} 件
                         </span>
-                        <span className="tnum shrink-0 text-sm font-medium">
+                        <span data-slot="amount" className="shrink-0 text-sm">
                           {formatMinorCurrency(category.netCostMinor, currency)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 pl-8">
+                        {/* 占比条用同一支墨的透明度，不引入新颜色 */}
                         <span
-                          className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted"
+                          className="h-1.5 flex-1 overflow-hidden bg-muted"
                           aria-hidden="true"
                         >
                           <span
-                            className="block h-full rounded-full bg-link"
+                            className="block h-full bg-foreground/60"
                             style={{
                               width: `${String(share)}%`,
                               ...(category.color
@@ -401,7 +455,10 @@ export function DashboardPage() {
                             }}
                           />
                         </span>
-                        <span className="tnum w-24 shrink-0 text-right text-xs text-muted-foreground">
+                        <span
+                          data-slot="amount"
+                          className="w-24 shrink-0 text-right text-xs text-muted-foreground"
+                        >
                           {share > 0 ? `${share.toFixed(1)}%` : '净投入不为正'}
                         </span>
                       </div>
@@ -409,7 +466,7 @@ export function DashboardPage() {
                   );
                 })}
               </div>
-            </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -417,7 +474,10 @@ export function DashboardPage() {
       {/* 两个排行 */}
       <section className="grid gap-5 lg:grid-cols-2" aria-label="资产效率">
         <Card>
-          <PanelHeading title="日均持有成本最高" hint="优先关注每天仍在摊薄的高成本物品" />
+          <PanelHeading
+            title="日均持有成本最高"
+            hint="优先关注每天仍在摊薄的高成本物品"
+          />
           <CardContent className="flex flex-col">
             {dashboard.assetRankings.highestHoldingDailyCost.length === 0 ? (
               <EmptyState title="暂无可计算成本的物品" />
@@ -439,10 +499,14 @@ export function DashboardPage() {
                     </span>
                   </span>
                   <span className="shrink-0 text-right">
-                    <span className="tnum block text-sm font-medium">
-                      {formatDailyMinorCurrency(asset.holdingDailyCostMinor, currency)}
+                    <span data-slot="amount" className="block text-sm">
+                      {dailyFace(asset.holdingDailyCostMinor, currency)}
+                      <span className="text-[11px] text-muted-foreground"> / 天</span>
                     </span>
-                    <span className="tnum block text-xs text-muted-foreground">
+                    <span
+                      data-slot="amount"
+                      className="block text-xs text-muted-foreground"
+                    >
                       {asset.holdingDays} 天
                     </span>
                   </span>
@@ -475,95 +539,16 @@ export function DashboardPage() {
                     </span>
                   </span>
                   <span className="shrink-0 text-right">
-                    <span className="tnum block text-sm font-medium">
+                    <span data-slot="amount" className="block text-sm">
                       {asset.holdingDays} 天
                     </span>
-                    <span className="tnum block text-xs text-muted-foreground">
-                      {formatDailyMinorCurrency(asset.holdingDailyCostMinor, currency)}
+                    <span
+                      data-slot="amount"
+                      className="block text-xs text-muted-foreground"
+                    >
+                      {dailyFace(asset.holdingDailyCostMinor, currency)} / 天
                     </span>
                   </span>
-                </Link>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* 状态 + 提醒 */}
-      <section className="grid gap-5 lg:grid-cols-2">
-        <Card>
-          <PanelHeading
-            title="持有状态"
-            hint={attentionCount > 0 ? `${attentionCount} 件需要留意` : '当前状态平稳'}
-            action={
-              <Layers3
-                aria-hidden="true"
-                className="size-5 shrink-0 text-muted-foreground"
-                strokeWidth={1.7}
-              />
-            }
-          />
-          <CardContent>
-            <dl className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-              {statusItems.map((item) => (
-                <div
-                  className="rounded-sm border border-border-soft bg-muted/40 px-3 py-2.5 text-center"
-                  key={item.label}
-                >
-                  <dt className="text-xs text-muted-foreground">{item.label}</dt>
-                  <dd className="tnum mt-0.5 text-lg font-semibold text-heading">
-                    {item.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <PanelHeading
-            title="即将到期"
-            hint="未来 90 天"
-            action={
-              <Button asChild variant="link" size="sm" className="h-auto p-0">
-                <Link to="/reminders">查看全部</Link>
-              </Button>
-            }
-          />
-          <CardContent className="flex flex-col">
-            {dashboard.upcomingReminders.length === 0 ? (
-              <EmptyState icon={Bell} title="暂无即将到期的提醒" />
-            ) : (
-              dashboard.upcomingReminders.slice(0, 4).map((reminder) => (
-                <Link
-                  key={reminder.id}
-                  className={rankRow}
-                  to="/reminders/$reminderId"
-                  params={{ reminderId: reminder.reminderId }}
-                >
-                  <CalendarDays
-                    aria-hidden="true"
-                    className="size-4 shrink-0 text-muted-foreground"
-                    strokeWidth={1.8}
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
-                      {reminder.title}
-                    </span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {reminder.assetName ?? '全局提醒'}
-                    </span>
-                  </span>
-                  <time
-                    className="tnum shrink-0 text-xs text-muted-foreground"
-                    dateTime={reminder.dueAt}
-                  >
-                    {new Intl.DateTimeFormat('zh-CN', {
-                      timeZone: reminder.timeZone,
-                      month: 'short',
-                      day: 'numeric',
-                    }).format(new Date(reminder.dueAt))}
-                  </time>
                 </Link>
               ))
             )}
@@ -574,7 +559,7 @@ export function DashboardPage() {
       {dashboard.totalItemCount === 0 && (
         <EmptyState
           icon={Archive}
-          title="从第一件物品开始建立资产报表"
+          title="从第一件物品开始建立总账"
           description="记录取得成本和状态后，净投入、日均成本与资产版图会自动生成。"
           action={
             <Button asChild>
