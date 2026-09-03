@@ -251,7 +251,7 @@ export function DashboardPage() {
         <CardContent className="space-y-2 p-5 sm:p-6">
           <div className="flex items-end justify-between gap-3">
             <strong
-              key={netInvestmentPrintKey}
+              key={`net-investment-${netInvestmentPrintKey}`}
               data-slot="amount"
               className={cn(
                 'block text-[44px] leading-none font-medium sm:text-[56px]',
@@ -261,9 +261,11 @@ export function DashboardPage() {
             >
               {formatMinorCurrency(dashboard.currentNetInvestmentMinor, currency)}
             </strong>
-            {/* 总存根也凭印 —— 数额更新时，印章和大数字一起回落 */}
+            {/* 总存根也凭印 —— 数额更新时，印章和大数字一起回落。
+             * 两个 key 必须互不相同：同级兄弟共用一个 key，React 会把
+             * 旧数字就地换成新值再追加新数字 —— 页面上出现两个大数字。 */}
             <SealMark
-              key={netInvestmentPrintKey}
+              key={`net-investment-stamp-${netInvestmentPrintKey}`}
               stamped={netInvestmentPrintKey > 0}
               className="mb-1 shrink-0"
             />
