@@ -424,12 +424,12 @@ function AssetDetailContent({ asset }: { asset: AssetDetail }) {
   };
 
   const voidFinancialEvent = (eventId: string) => {
-    const reason = window.prompt('请输入作废原因（会永久保留在审计记录中）');
+    const reason = window.prompt('请输入删除原因（会永久保留在审计记录中）');
     if (!reason?.trim()) return;
     correctFinancialEvent.mutate({ eventId, input: { reason: reason.trim() } });
   };
 
-  const replaceFinancialAmount = (event: AssetDetail['financialEvents'][number]) => {
+  const replaceFinancialEvent = (event: AssetDetail['financialEvents'][number]) => {
     const nextMajor = window.prompt(
       `输入更正后的金额（${event.currency}）`,
       minorToMajor(event.amountMinor, event.currency),
@@ -440,6 +440,13 @@ function AssetDetailContent({ asset }: { asset: AssetDetail }) {
       setFormError('更正金额必须大于零，且小数位数符合币种规则');
       return;
     }
+    const occurredOn = window.prompt('输入更正后的发生日期', event.occurredOn);
+    if (!occurredOn) return;
+    const note = window.prompt('输入更正后的备注（留空可清除）', event.note ?? '');
+    if (note === null) return;
+    const includeInNetCost = window.confirm(
+      '是否将这笔更正后的资金事件计入净成本？点击“取消”表示不计入。',
+    );
     const reason = window.prompt('请输入更正原因（会永久保留在审计记录中）');
     if (!reason?.trim()) return;
     correctFinancialEvent.mutate({
@@ -453,11 +460,12 @@ function AssetDetailContent({ asset }: { asset: AssetDetail }) {
           currency: event.currency,
           exchangeRate: event.exchangeRate,
           exchangeRateSource: event.exchangeRateSource,
-          exchangeRateDate: event.exchangeRateDate,
+          exchangeRateDate:
+            event.exchangeRateDate <= occurredOn ? event.exchangeRateDate : occurredOn,
           exchangeRateFallback: event.exchangeRateFallback,
-          occurredOn: event.occurredOn,
-          includeInNetCost: event.includeInNetCost,
-          ...(event.note ? { note: event.note } : {}),
+          occurredOn,
+          includeInNetCost,
+          ...(note.trim() ? { note: note.trim() } : {}),
         },
       },
     });
@@ -992,23 +1000,23 @@ function AssetDetailContent({ asset }: { asset: AssetDetail }) {
                           ) : null}
                           {event.voidedAt ? (
                             <p data-slot="annotation" className="text-xs">
-                              已作废：{event.voidReason}
+                              已删除（作废）：{event.voidReason}
                             </p>
                           ) : (
                             <div className="flex gap-3 pt-0.5">
                               <button
                                 className={auditAction}
                                 type="button"
-                                onClick={() => replaceFinancialAmount(event)}
+                                onClick={() => replaceFinancialEvent(event)}
                               >
-                                更正金额
+                                更正记录
                               </button>
                               <button
                                 className={auditAction}
                                 type="button"
                                 onClick={() => voidFinancialEvent(event.id)}
                               >
-                                作废
+                                删除
                               </button>
                             </div>
                           )}
