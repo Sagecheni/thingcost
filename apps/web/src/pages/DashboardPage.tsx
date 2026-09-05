@@ -23,6 +23,7 @@ import { FormError } from '../components/ui/form.js';
 import { ChartBoard, PanelGhost } from '../components/ui/ledger-skeleton.js';
 import { PageHeader } from '../components/ui/page-header.js';
 import { SegmentedControl } from '../components/ui/segmented-control.js';
+import { TrendPeriodControl } from '../components/TrendPeriodControl.js';
 import { SealMark } from '../components/SealMark.js';
 import { TypeBlock } from '../components/TypeBlock.js';
 import { VaultRack } from '../components/VaultRack.js';
@@ -40,12 +41,6 @@ const trendMetricOptions = [
   { value: 'holdingDailyCost', label: '日均持有' },
   { value: 'serviceDailyCost', label: '日均服役' },
 ] as const satisfies readonly { value: TrendMetric; label: string }[];
-
-const periodOptions = [
-  { value: 30, label: '30 天' },
-  { value: 90, label: '90 天' },
-  { value: 180, label: '180 天' },
-] as const;
 
 const trendMetricLabels: Record<TrendMetric, string> = {
   netInvestment: '净投入变化 · 阶梯的每一级是一次取得',
@@ -93,8 +88,10 @@ function PanelHeading({
   );
 }
 
-/* 副读数：票面小一号，口径写在下面。 */
-function ReadingSheet({
+/* 副读数格：挂在总存根里的一格，不再自成一张纸。
+ * 这三个口径是上面那个净投入的三种看法，不是三个并列指标 ——
+ * 共享同一张纸才读得出从属关系。 */
+function ReadingCell({
   label,
   value,
   unit,
@@ -108,26 +105,22 @@ function ReadingSheet({
   isGain: boolean;
 }) {
   return (
-    <Card>
-      <CardContent className="space-y-1.5 p-5">
-        <dt data-slot="ledger-label">{label}</dt>
-        <dd className="flex items-baseline gap-1">
-          <span
-            data-slot="amount"
-            className={cn(
-              'text-[26px] leading-none font-medium',
-              isGain ? 'text-success' : 'text-heading',
-            )}
-          >
-            {value}
-          </span>
-          {unit ? (
-            <span className="text-[11px] text-muted-foreground">{unit}</span>
-          ) : null}
-        </dd>
-        <p className="text-xs text-muted-foreground">{note}</p>
-      </CardContent>
-    </Card>
+    <div className="space-y-1.5 px-5 py-4 sm:px-6">
+      <dt data-slot="ledger-label">{label}</dt>
+      <dd className="flex items-baseline gap-1">
+        <span
+          data-slot="amount"
+          className={cn(
+            'text-[26px] leading-none font-medium',
+            isGain ? 'text-success' : 'text-heading',
+          )}
+        >
+          {value}
+        </span>
+        {unit ? <span className="text-[11px] text-muted-foreground">{unit}</span> : null}
+      </dd>
+      <dd className="text-xs text-muted-foreground">{note}</dd>
+    </div>
   );
 }
 
@@ -140,8 +133,10 @@ function RankIndex({ index }: { index: number }) {
   );
 }
 
+/* 排行条目分隔用实线细规 —— 虚线在这套系统里是撕口的语言，
+ * 拿它当条目分隔会把撕口这个符号稀释掉。 */
 const rankRow = cn(
-  'flex items-center gap-3 border-b border-dashed border-border py-2.5 last:border-0',
+  'flex items-center gap-3 border-b border-border-soft py-2.5 last:border-0',
   'transition-colors hover:bg-accent',
 );
 
@@ -183,13 +178,8 @@ export function DashboardPage() {
   if (dashboardQuery.isPending) {
     return (
       <div aria-busy="true" className="mx-auto flex max-w-6xl flex-col gap-5">
-        {/* 总账页的骨架：一张总存根 + 三张副读数 + 两块图表格 */}
-        <PanelGhost lines={3} />
-        <div className="grid gap-5 sm:grid-cols-3">
-          <PanelGhost lines={2} />
-          <PanelGhost lines={2} />
-          <PanelGhost lines={2} />
-        </div>
+        {/* 总账页的骨架：一张总存根（含挂在上面的三个口径）+ 图表格 + 版图 */}
+        <PanelGhost lines={5} />
         <PanelGhost chart />
         <PanelGhost lines={4} />
       </div>
@@ -301,42 +291,50 @@ export function DashboardPage() {
             </dd>
           </div>
         </dl>
+
+        {/* 三个成本口径挂在同一张存根上：它们是上面那个总数的三种看法 */}
+        <dl className="grid divide-y divide-border border-t border-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <ReadingCell
+            label="日均持有成本"
+            value={formatMinorCurrency(
+              dashboard.currentHoldingDailyCostMinor,
+              currency,
+              2,
+            )}
+            unit="/ 天"
+            note="包含闲置、借出与退役持有"
+            isGain={holdingDailyIsGain}
+          />
+          <ReadingCell
+            label="日均服役成本"
+            value={formatMinorCurrency(dashboard.currentDailyCostMinor, currency, 2)}
+            unit="/ 天"
+            note="按实际服役天数摊薄"
+            isGain={serviceDailyIsGain}
+          />
+          <ReadingCell
+            label={`近 ${String(dashboard.periodDays)} 天${periodIsNetInflow ? '净流入' : '净支出'}`}
+            value={formatMinorCurrency(
+              absoluteMinor(dashboard.periodNetSpendingMinor),
+              currency,
+            )}
+            note={
+              <>
+                流出 {formatMinorCurrency(dashboard.periodSpendingMinor, currency)} · 流入{' '}
+                {formatMinorCurrency(dashboard.periodInflowMinor, currency)}
+              </>
+            }
+            isGain={periodIsNetInflow}
+          />
+        </dl>
       </Card>
 
-      {/* 三个成本口径，各自一张 */}
-      <dl className="grid gap-5 sm:grid-cols-3">
-        <ReadingSheet
-          label="日均持有成本"
-          value={formatMinorCurrency(dashboard.currentHoldingDailyCostMinor, currency, 2)}
-          unit="/ 天"
-          note="包含闲置、借出与退役持有"
-          isGain={holdingDailyIsGain}
-        />
-        <ReadingSheet
-          label="日均服役成本"
-          value={formatMinorCurrency(dashboard.currentDailyCostMinor, currency, 2)}
-          unit="/ 天"
-          note="按实际服役天数摊薄"
-          isGain={serviceDailyIsGain}
-        />
-        <ReadingSheet
-          label={`近 ${String(dashboard.periodDays)} 天${periodIsNetInflow ? '净流入' : '净支出'}`}
-          value={formatMinorCurrency(
-            absoluteMinor(dashboard.periodNetSpendingMinor),
-            currency,
-          )}
-          note={
-            <>
-              流出 {formatMinorCurrency(dashboard.periodSpendingMinor, currency)} · 流入{' '}
-              {formatMinorCurrency(dashboard.periodInflowMinor, currency)}
-            </>
-          }
-          isGain={periodIsNetInflow}
-        />
-      </dl>
-
       {/* 资产趋势 */}
-      <Card aria-busy={dashboardQuery.isFetching} aria-labelledby="trend-title">
+      <Card
+        paper="leaf"
+        aria-busy={dashboardQuery.isFetching}
+        aria-labelledby="trend-title"
+      >
         <PanelHeading
           id="trend-title"
           title="资产趋势"
@@ -349,10 +347,9 @@ export function DashboardPage() {
                 options={trendMetricOptions}
                 onChange={setTrendMetric}
               />
-              <SegmentedControl
+              <TrendPeriodControl
                 label="报表时间范围"
                 value={periodDays}
-                options={periodOptions}
                 onChange={setPeriodDays}
               />
             </div>
@@ -392,7 +389,7 @@ export function DashboardPage() {
       </Card>
 
       {/* 资产版图：树图 + 排行表（排行同时充当图表的表格视图） */}
-      <Card aria-labelledby="asset-map-title">
+      <Card paper="leaf" aria-labelledby="asset-map-title">
         <PanelHeading
           id="asset-map-title"
           title="资产版图"
@@ -473,90 +470,96 @@ export function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* 两个排行 */}
-      <section className="grid gap-5 lg:grid-cols-2" aria-label="资产效率">
-        <Card>
-          <PanelHeading
-            title="日均持有成本最高"
-            hint="优先关注每天仍在摊薄的高成本物品"
-          />
-          <CardContent className="flex flex-col">
-            {dashboard.assetRankings.highestHoldingDailyCost.length === 0 ? (
-              <EmptyState title="暂无可计算成本的物品" />
-            ) : (
-              dashboard.assetRankings.highestHoldingDailyCost.map((asset, index) => (
-                <Link
-                  key={asset.assetId}
-                  className={rankRow}
-                  to="/assets/$assetId"
-                  params={{ assetId: asset.assetId }}
-                >
-                  <RankIndex index={index} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
-                      {asset.name}
+      {/* 两个排行合成一张纸的对开两页，中间一道竖规 —— 两块一样的 widget
+       * 并排读不出关系，一页账的左右栏读得出。 */}
+      <Card paper="leaf">
+        <section
+          className="grid divide-y divide-border lg:grid-cols-2 lg:divide-x lg:divide-y-0"
+          aria-label="资产效率"
+        >
+          <div>
+            <PanelHeading
+              title="日均持有成本最高"
+              hint="优先关注每天仍在摊薄的高成本物品"
+            />
+            <CardContent className="flex flex-col">
+              {dashboard.assetRankings.highestHoldingDailyCost.length === 0 ? (
+                <EmptyState title="柜中暂无可计算成本的物品" />
+              ) : (
+                dashboard.assetRankings.highestHoldingDailyCost.map((asset, index) => (
+                  <Link
+                    key={asset.assetId}
+                    className={rankRow}
+                    to="/assets/$assetId"
+                    params={{ assetId: asset.assetId }}
+                  >
+                    <RankIndex index={index} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {asset.name}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {asset.categoryName} · {asset.statusName}
+                      </span>
                     </span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {asset.categoryName} · {asset.statusName}
+                    <span className="shrink-0 text-right">
+                      <span data-slot="amount" className="block text-sm">
+                        {dailyFace(asset.holdingDailyCostMinor, currency)}
+                        <span className="text-[11px] text-muted-foreground"> / 天</span>
+                      </span>
+                      <span
+                        data-slot="amount"
+                        className="block text-xs text-muted-foreground"
+                      >
+                        {asset.holdingDays} 天
+                      </span>
                     </span>
-                  </span>
-                  <span className="shrink-0 text-right">
-                    <span data-slot="amount" className="block text-sm">
-                      {dailyFace(asset.holdingDailyCostMinor, currency)}
-                      <span className="text-[11px] text-muted-foreground"> / 天</span>
-                    </span>
-                    <span
-                      data-slot="amount"
-                      className="block text-xs text-muted-foreground"
-                    >
-                      {asset.holdingDays} 天
-                    </span>
-                  </span>
-                </Link>
-              ))
-            )}
-          </CardContent>
-        </Card>
+                  </Link>
+                ))
+              )}
+            </CardContent>
+          </div>
 
-        <Card>
-          <PanelHeading title="持有时间最长" hint="已经陪伴最久的当前持有物品" />
-          <CardContent className="flex flex-col">
-            {dashboard.assetRankings.longestHeld.length === 0 ? (
-              <EmptyState title="暂无持有中的物品" />
-            ) : (
-              dashboard.assetRankings.longestHeld.map((asset, index) => (
-                <Link
-                  key={asset.assetId}
-                  className={rankRow}
-                  to="/assets/$assetId"
-                  params={{ assetId: asset.assetId }}
-                >
-                  <RankIndex index={index} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
-                      {asset.name}
+          <div>
+            <PanelHeading title="持有时间最长" hint="已经陪伴最久的当前持有物品" />
+            <CardContent className="flex flex-col">
+              {dashboard.assetRankings.longestHeld.length === 0 ? (
+                <EmptyState title="柜中暂无持有中的物品" />
+              ) : (
+                dashboard.assetRankings.longestHeld.map((asset, index) => (
+                  <Link
+                    key={asset.assetId}
+                    className={rankRow}
+                    to="/assets/$assetId"
+                    params={{ assetId: asset.assetId }}
+                  >
+                    <RankIndex index={index} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">
+                        {asset.name}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {asset.categoryName} · {asset.statusName}
+                      </span>
                     </span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {asset.categoryName} · {asset.statusName}
+                    <span className="shrink-0 text-right">
+                      <span data-slot="amount" className="block text-sm">
+                        {asset.holdingDays} 天
+                      </span>
+                      <span
+                        data-slot="amount"
+                        className="block text-xs text-muted-foreground"
+                      >
+                        {dailyFace(asset.holdingDailyCostMinor, currency)} / 天
+                      </span>
                     </span>
-                  </span>
-                  <span className="shrink-0 text-right">
-                    <span data-slot="amount" className="block text-sm">
-                      {asset.holdingDays} 天
-                    </span>
-                    <span
-                      data-slot="amount"
-                      className="block text-xs text-muted-foreground"
-                    >
-                      {dailyFace(asset.holdingDailyCostMinor, currency)} / 天
-                    </span>
-                  </span>
-                </Link>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </section>
+                  </Link>
+                ))
+              )}
+            </CardContent>
+          </div>
+        </section>
+      </Card>
 
       {dashboard.totalItemCount === 0 && (
         <EmptyState

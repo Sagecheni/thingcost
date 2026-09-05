@@ -22,19 +22,19 @@ import { cn } from '@thingcost/ui';
 import { AssetAttachmentsPanel } from '../components/AssetAttachmentsPanel.js';
 import { AuditStamp } from '../components/AuditStamp.js';
 import { SealMark } from '../components/SealMark.js';
+import { TypeBlock } from '../components/TypeBlock.js';
 import {
   AssetActivityForms,
   AssetActivityHistory,
 } from '../components/AssetActivityPanels.js';
 import { TagPicker } from '../components/TagPicker.js';
-import { Badge } from '../components/ui/badge.js';
 import { Button } from '../components/ui/button.js';
 import { Card, CardContent } from '../components/ui/card.js';
 import { ConfirmDialog } from '../components/ui/confirm-dialog.js';
 import { EmptyState } from '../components/ui/empty-state.js';
 import { FactRow, SelectInput } from '../components/ui/form.js';
 import { ChartBoard, PanelGhost } from '../components/ui/ledger-skeleton.js';
-import { SegmentedControl } from '../components/ui/segmented-control.js';
+import { TrendPeriodControl } from '../components/TrendPeriodControl.js';
 import { api } from '../lib/api.js';
 import {
   currencySymbol,
@@ -54,6 +54,7 @@ import {
   localToday,
   majorToMinor,
   minorToMajor,
+  ticketNumber,
 } from '../lib/format.js';
 import { queryKeys } from '../lib/query-keys.js';
 
@@ -62,12 +63,6 @@ const AssetCostTrendChart = lazy(() =>
     default: module.AssetCostTrendChart,
   })),
 );
-
-const costPeriodOptions = [
-  { value: 30, label: '30 天' },
-  { value: 90, label: '90 天' },
-  { value: 180, label: '180 天' },
-] as const;
 
 const fieldLabel = 'flex flex-col gap-1.5 text-xs text-muted-foreground';
 const field = 'h-9 w-full px-2.5 text-sm text-foreground focus-visible:outline-none';
@@ -79,7 +74,7 @@ const auditAction = cn(
   'hover:text-destructive hover:underline',
 );
 
-/* 分区标题：把这一页切成 概览 / 时间线 / 资料 三段 */
+/* 分区标题：档案头那张票之后，这一页切成 成本曲线 / 时间线 / 资料 三段 */
 function SectionHeading({
   eyebrow,
   title,
@@ -101,46 +96,7 @@ function SectionHeading({
   );
 }
 
-/* 一格读数 */
-function Reading({
-  label,
-  value,
-  unit,
-  note,
-  emphasis = false,
-  isGain = false,
-}: {
-  label: string;
-  value: string;
-  unit?: string;
-  note?: ReactNode;
-  emphasis?: boolean;
-  isGain?: boolean;
-}) {
-  return (
-    <Card>
-      <CardContent className="space-y-1.5 p-4">
-        <dt data-slot="ledger-label">{label}</dt>
-        <dd className="flex items-baseline gap-1">
-          <span
-            data-slot="amount"
-            className={cn(
-              'leading-none font-medium',
-              emphasis ? 'text-[30px]' : 'text-xl',
-              isGain ? 'text-success' : 'text-heading',
-            )}
-          >
-            {value}
-          </span>
-          {unit ? (
-            <span className="text-[11px] text-muted-foreground">{unit}</span>
-          ) : null}
-        </dd>
-        {note ? <p className="text-xs text-muted-foreground">{note}</p> : null}
-      </CardContent>
-    </Card>
-  );
-}
+/* 读数格已并入档案头那张票（票面 + 存根脚），不再单列一组 KPI 卡 */
 
 /* 资料区的键值行由 ui/form.tsx 提供，这里不再重复一份 */
 
@@ -539,46 +495,147 @@ function AssetDetailContent({ asset }: { asset: AssetDetail }) {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
-      {/* ── 档案头 ─────────────────────────────────────── */}
-      <header
-        className={cn(
-          'flex flex-col gap-3 border-b border-border pb-5',
-          fresh && 'fresh-ink',
-        )}
-      >
+      {/* ── 档案头：这一件的当票正式版 ────────────────────────
+       * 结构与总览的总存根同源：头联(虚线) / 大票面 / 骑缝 / 存根脚。
+       * 列表页每件东西是一张票，点进来必须还是那张票 —— 放大、盖印、
+       * 带上背面的全部历史，而不是换成一个通用的详情页头。 */}
+      <header className={cn('flex flex-col gap-3', fresh && 'fresh-ink')}>
         <Link
           className="inline-flex w-fit items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
           to="/assets"
         >
           <ArrowLeft aria-hidden="true" className="size-4" /> 返回全部物品
         </Link>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="min-w-0 space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <span data-slot="ledger-label">{asset.category.name}</span>
-              <Badge variant={currentDisposed ? 'outline' : 'success'}>
-                {asset.currentStatus.name}
-              </Badge>
-            </div>
-            <h1 className="text-2xl font-semibold text-heading">{asset.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {[asset.brand, asset.model].filter(Boolean).join(' · ') ||
-                `${acquisitionTypeLabel(asset.acquisitionType)}于 ${asset.acquisitionDate}`}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* 档案头的印：保存成功就落一次 —— 凭印为信在这里闭环 */}
-            <SealMark key={saveStamp} stamped={saveStamp > 0} />
-            <Button
-              variant="secondary"
-              type="button"
-              onClick={() => setEditing(!editing)}
-              aria-expanded={editing}
+
+        <Card aria-labelledby="asset-ticket-title">
+          {/* 头联：分类 · 当字第 N 号 | 状态。状态用墨、分类用淡墨，
+           * 与列表页当票同一套写法。 */}
+          <div className="flex items-baseline justify-between gap-3 border-b border-dashed border-border px-5 pt-4 pb-2.5 sm:px-6">
+            <span
+              data-slot="ledger-label"
+              className="flex min-w-0 items-center gap-1.5 truncate"
             >
-              <Edit3 aria-hidden="true" /> {editing ? '收起编辑' : '编辑资料'}
-            </Button>
+              <TypeBlock name={asset.category.name} />
+              <span className="truncate">
+                {asset.category.name} · 当字第 {ticketNumber(asset.id)} 号
+              </span>
+            </span>
+            <span
+              data-slot="ledger-label"
+              className={cn(
+                'shrink-0',
+                currentDisposed ? 'text-muted-foreground' : 'text-foreground',
+              )}
+            >
+              {asset.currentStatus.name}
+            </span>
           </div>
-        </div>
+
+          <CardContent className="space-y-4 p-5 sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 space-y-1">
+                <h1
+                  className="text-2xl font-semibold text-heading"
+                  id="asset-ticket-title"
+                >
+                  {asset.name}
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {[asset.brand, asset.model].filter(Boolean).join(' · ') ||
+                    `${acquisitionTypeLabel(asset.acquisitionType)}于 ${asset.acquisitionDate}`}
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={() => setEditing(!editing)}
+                aria-expanded={editing}
+              >
+                <Edit3 aria-hidden="true" /> {editing ? '收起编辑' : '编辑资料'}
+              </Button>
+            </div>
+
+            {/* 票面：与总览主存根同一个量级 —— 点进单件不该反而不隆重 */}
+            <div className="flex items-end justify-between gap-3">
+              <div className="min-w-0 space-y-1">
+                <p data-slot="ledger-label">
+                  {isNetGain ? '生命周期日均净收益' : '生命周期日均成本'}
+                </p>
+                <p className="flex items-baseline gap-1.5">
+                  <span
+                    data-slot="amount"
+                    className={cn(
+                      'text-[40px] leading-none font-medium sm:text-[52px]',
+                      isNetGain ? 'text-success' : 'text-heading',
+                    )}
+                  >
+                    {asset.metrics.netDailyCostMinor === null
+                      ? '—'
+                      : formatMinorCurrency(
+                          asset.metrics.netDailyCostMinor,
+                          baseCurrency,
+                          2,
+                        )}
+                  </span>
+                  {asset.metrics.netDailyCostMinor === null ? null : (
+                    <span className="text-xs text-muted-foreground">/ 天</span>
+                  )}
+                </p>
+              </div>
+              {/* 档案头的印：保存成功就落一次 —— 凭印为信在这里闭环 */}
+              <SealMark
+                key={saveStamp}
+                stamped={saveStamp > 0}
+                className="mb-1 shrink-0"
+              />
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              {asset.currentCondition
+                ? `成色 ${conditionGradeLabel(asset.currentCondition.grade)}`
+                : '成色未记录'}
+              {' · 退役与闲置期间不累加服役天数'}
+            </p>
+          </CardContent>
+
+          <div data-slot="perforation" aria-hidden="true" className="mt-2" />
+
+          {/* 存根脚：净成本 / 持有 / 服役 —— 三栏成列 */}
+          <dl className="grid gap-3 px-5 pt-3 pb-4 sm:grid-cols-3 sm:px-6">
+            <div className="space-y-0.5">
+              <dt data-slot="ledger-label">生命周期净成本</dt>
+              <dd
+                data-slot="amount"
+                className={cn('text-lg', isNetGain ? 'text-success' : 'text-heading')}
+              >
+                {formatMinorCurrency(asset.metrics.netCostMinor, baseCurrency)}
+              </dd>
+              {/* 大写防改 —— 当票面额的传统写法，三位小数货币没有大写传统时留空 */}
+              {asset.metrics.netCostMinor === null ? null : (
+                <dd className="text-xs text-muted-foreground">
+                  {chineseCapitalAmount(asset.metrics.netCostMinor, baseCurrency)}
+                </dd>
+              )}
+            </div>
+            <div className="space-y-0.5">
+              <dt data-slot="ledger-label">持有天数</dt>
+              <dd data-slot="amount" className="text-lg text-heading">
+                {asset.metrics.holdingDays} 天
+              </dd>
+              {/* 入册干支：当票开头"兹于某年月日当入"的年注 */}
+              <dd className="text-xs text-muted-foreground">
+                取得于 {asset.acquisitionDate} ·{' '}
+                {ganZhiYear(Number(asset.acquisitionDate.slice(0, 4)))}
+              </dd>
+            </div>
+            <div className="space-y-0.5">
+              <dt data-slot="ledger-label">服役天数</dt>
+              <dd data-slot="amount" className="text-lg text-heading">
+                {asset.metrics.serviceDays} 天
+              </dd>
+            </div>
+          </dl>
+        </Card>
       </header>
 
       {editing ? (
@@ -720,67 +777,17 @@ function AssetDetailContent({ asset }: { asset: AssetDetail }) {
         </form>
       ) : null}
 
-      {/* ── 概览 ───────────────────────────────────────── */}
-      <section className="flex flex-col gap-4" aria-labelledby="overview-title">
-        <SectionHeading eyebrow="Overview" title="概览" id="overview-title" />
+      {/* ── 摊薄 ───────────────────────────────────────── */}
+      {/* 四格读数已经并进上面那张票的票面与存根脚，这一段只留曲线 */}
+      <section className="flex flex-col gap-4" aria-labelledby="asset-cost-curve-title">
+        <SectionHeading eyebrow="总目" title="成本曲线" id="asset-cost-curve-title" />
 
-        <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Reading
-            label={isNetGain ? '生命周期日均净收益' : '生命周期日均成本'}
-            value={
-              asset.metrics.netDailyCostMinor === null
-                ? '—'
-                : formatMinorCurrency(asset.metrics.netDailyCostMinor, baseCurrency, 2)
-            }
-            {...(asset.metrics.netDailyCostMinor === null ? {} : { unit: '/ 天' })}
-            note={
-              asset.currentCondition
-                ? conditionGradeLabel(asset.currentCondition.grade)
-                : '成色未记录'
-            }
-            emphasis
-            isGain={isNetGain}
-          />
-          <Reading
-            label="生命周期净成本"
-            value={formatMinorCurrency(asset.metrics.netCostMinor, baseCurrency)}
-            isGain={isNetGain}
-            note={
-              /* 大写防改 —— 当票面额的传统写法，三位小数货币没有大写传统时留空 */
-              asset.metrics.netCostMinor === null
-                ? undefined
-                : (chineseCapitalAmount(asset.metrics.netCostMinor, baseCurrency) ??
-                  undefined)
-            }
-          />
-          <Reading
-            label="持有天数"
-            value={String(asset.metrics.holdingDays)}
-            unit="天"
-            /* 入册干支：当票开头"兹于某年月日当入"的年注 */
-            note={`取得于 ${asset.acquisitionDate} · ${ganZhiYear(Number(asset.acquisitionDate.slice(0, 4)))}`}
-          />
-          <Reading
-            label="服役天数"
-            value={String(asset.metrics.serviceDays)}
-            unit="天"
-            note="退役与闲置期间不累加"
-          />
-        </dl>
-
-        <Card aria-labelledby="asset-cost-curve-title">
+        <Card>
           <CardContent className="space-y-3 p-5">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div className="space-y-0.5">
-                <p data-slot="ledger-label">Cost curve</p>
-                <h3 className="text-base font-semibold" id="asset-cost-curve-title">
-                  成本曲线
-                </h3>
-              </div>
-              <SegmentedControl
+            <div className="flex flex-wrap items-end justify-end gap-3">
+              <TrendPeriodControl
                 label="成本曲线时间范围"
                 value={costPeriodDays}
-                options={costPeriodOptions}
                 onChange={setCostPeriodDays}
               />
             </div>
@@ -814,7 +821,7 @@ function AssetDetailContent({ asset }: { asset: AssetDetail }) {
         <div className="flex min-w-0 flex-col gap-8">
           {/* ── 时间线 ─────────────────────────────────── */}
           <section className="flex flex-col gap-4">
-            <SectionHeading eyebrow="Ledger" title="时间线" />
+            <SectionHeading eyebrow="流水" title="时间线" />
 
             {correctLifecycleEvent.error || correctFinancialEvent.error ? (
               <p
@@ -846,19 +853,28 @@ function AssetDetailContent({ asset }: { asset: AssetDetail }) {
                   </p>
                 ) : (
                   <ol className="flex flex-col">
-                    {[...asset.lifecycleEvents].reverse().map((event) => (
+                    {[...asset.lifecycleEvents].reverse().map((event, index) => (
                       <li
                         className={cn(
-                          'flex gap-3 border-b border-dashed border-border py-3 last:border-0',
+                          /* 条目分隔用实线细规。虚线在这套系统里是撕口的语言，
+                           * 一条时间线上排十几道虚线会把撕口这个符号稀释掉。 */
+                          'flex gap-3 border-b border-border-soft py-3 last:border-0',
                           event.voidedAt && 'opacity-60',
                         )}
                         key={event.id}
                       >
-                        {/* 4px 竖track，当前状态那一条转成主色 */}
+                        {/* 账册条目编号 + 一道贯穿的细竖规；当前状态那条把规转成主色 */}
+                        <span
+                          data-slot="amount"
+                          aria-hidden="true"
+                          className="w-6 shrink-0 pt-0.5 text-xs text-muted-foreground"
+                        >
+                          {String(asset.lifecycleEvents.length - index).padStart(2, '0')}
+                        </span>
                         <span
                           aria-hidden="true"
                           className={cn(
-                            'mt-1 w-1 shrink-0 self-stretch',
+                            'w-px shrink-0 self-stretch',
                             event.id === latestLifecycleEventId
                               ? 'bg-primary'
                               : 'bg-border',
@@ -1056,7 +1072,7 @@ function AssetDetailContent({ asset }: { asset: AssetDetail }) {
 
           {/* ── 资料 ───────────────────────────────────── */}
           <section className="flex flex-col gap-4">
-            <SectionHeading eyebrow="Dossier" title="资料与附件" />
+            <SectionHeading eyebrow="底档" title="资料与附件" />
 
             {hasPurchaseFacts ? (
               <Card>
@@ -1158,7 +1174,7 @@ function AssetDetailContent({ asset }: { asset: AssetDetail }) {
 
         {/* ── 操作台 ───────────────────────────────────── */}
         <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
-          <SectionHeading eyebrow="Actions" title="记一笔" />
+          <SectionHeading eyebrow="落账" title="记一笔" />
 
           <AssetActivityForms asset={asset} onUpdated={refresh} />
 

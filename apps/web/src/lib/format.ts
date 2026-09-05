@@ -298,3 +298,10 @@ export function financialTypeLabel(type: string): string {
     }[type] ?? type
   );
 }
+
+/* 当票号：取资产 id 尾段四位，当票惯例「当字第 N 号」。
+ * 票号只负辨识不重查对，压短了头联才容得下铅字块与老档。
+ * 卡片与详情页共用同一支笔 —— 同一件东西在两处必须是同一个号。 */
+export function ticketNumber(assetId: string): string {
+  return assetId.slice(-4).toUpperCase();
+}

@@ -541,6 +541,12 @@
     background: var(--card);
   }
 
+  /* 附页：挂在总存根下面的分析面板，退回细边。
+   * 一页只该有一张存根 —— 粗顶线人人有份，就等于人人没有。 */
+  [data-slot='card'][data-paper='leaf'] {
+    border-top: 1px solid var(--border);
+  }
+
   /* 可点击的整块卡片：hover 压一道内描边，不上浮。
    * 纸不会飘起来，它只是被按住了。 */
   [data-slot='card'][data-interactive='true'] {

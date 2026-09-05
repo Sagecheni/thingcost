@@ -7,6 +7,17 @@ import {
   uuidSchema,
 } from './common.js';
 
+export const trendPeriodLimits = { min: 7, max: 3650 } as const;
+
+export const dashboardQuerySchema = z.object({
+  periodDays: z.coerce
+    .number()
+    .int()
+    .min(trendPeriodLimits.min)
+    .max(trendPeriodLimits.max)
+    .default(30),
+});
+
 export const dashboardCategorySchema = z.object({
   categoryId: uuidSchema,
   name: z.string(),

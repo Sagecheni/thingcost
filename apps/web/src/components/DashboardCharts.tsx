@@ -8,6 +8,7 @@ import type { Dashboard } from '@thingcost/contracts';
 
 import { type ChartPalette, useChartPalette, withAlpha } from '../lib/chart-palette.js';
 import { currencyFractionDigits, financialTypeLabel } from '../lib/format.js';
+import { trendAxisLabels } from '../lib/trend-axis.js';
 /* 只维护中文界面：图表格式化 locale 固定为 zh-CN。 */
 const displayLocale = 'zh-CN';
 
@@ -118,9 +119,7 @@ function dataIndexFromPointerEvent(event: unknown, dates: string[]): number | nu
   if (typeof seriesIndex === 'number') return seriesIndex;
   if (typeof axis?.value === 'number') return axis.value;
   if (typeof axis?.value === 'string') {
-    const index = dates.findIndex(
-      (date) => date === axis.value || date.slice(5) === axis.value,
-    );
+    const index = dates.findIndex((date) => date === axis.value);
     return index >= 0 ? index : null;
   }
   return null;
@@ -306,6 +305,7 @@ function categoryAxis(palette: ChartPalette, dates: string[]) {
       fontFamily: chartFont,
       fontSize: 11,
       hideOverlap: true,
+      ...trendAxisLabels(dates),
     },
     axisTick: { show: false },
   };
@@ -436,10 +436,7 @@ export function PortfolioTrendChart({
         },
         ...chartTooltip(palette),
       },
-      xAxis: categoryAxis(
-        palette,
-        dates.map((date) => date.slice(5)),
-      ),
+      xAxis: categoryAxis(palette, dates),
       yAxis: valueAxis(palette, currency),
       series: [
         {
@@ -612,11 +609,11 @@ export function AssetCostTrendChart({
   const initialValue = values.find((value): value is number => value !== null) ?? null;
   const previousValue = values[Math.max(0, activeIndex - 1)] ?? activeValue;
 
-  /* tooltip 按 MM-DD 查事件；一天多笔就全列出来 */
+  /* 使用完整日期，避免跨年后同月同日的事件混在一起。 */
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CostTrendEvent[]>();
     for (const event of events) {
-      const key = event.occurredOn.slice(5);
+      const key = event.occurredOn;
       map.set(key, [...(map.get(key) ?? []), event]);
     }
     return map;
@@ -631,7 +628,7 @@ export function AssetCostTrendChart({
       ...new Set(
         events
           .filter((event) => event.occurredOn >= first && event.occurredOn <= last)
-          .map((event) => event.occurredOn.slice(5)),
+          .map((event) => event.occurredOn),
       ),
     ];
   }, [dates, events]);
@@ -706,10 +703,7 @@ export function AssetCostTrendChart({
         },
         ...chartTooltip(palette),
       },
-      xAxis: categoryAxis(
-        palette,
-        dates.map((date) => date.slice(5)),
-      ),
+      xAxis: categoryAxis(palette, dates),
       yAxis: valueAxis(palette, currency),
       series: [
         {
